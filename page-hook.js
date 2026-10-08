@@ -55,6 +55,11 @@
           PlayAddr: b.PlayAddr ? { UrlList: b.PlayAddr.UrlList, Width: b.PlayAddr.Width, Height: b.PlayAddr.Height } : null
         }))
       } : null,
+      music: node.music ? {
+        playUrl: node.music.playUrl,
+        title: node.music.title,
+        authorName: node.music.authorName
+      } : null,
       imagePost: post ? {
         images: (post.images || []).map(img => ({ imageURL: img.imageURL, imageWidth: img.imageWidth, imageHeight: img.imageHeight })),
         cover: post.cover || null
@@ -215,6 +220,14 @@
   const scanEmbedded = () => {
     document.querySelectorAll('script#__UNIVERSAL_DATA_FOR_REHYDRATION__, script#SIGI_STATE, script#__NEXT_DATA__')
       .forEach(script => scanText(script.textContent));
+
+    try {
+      const universal = document.getElementById('__UNIVERSAL_DATA_FOR_REHYDRATION__');
+      const me = JSON.parse(universal?.textContent || '{}')?.__DEFAULT_SCOPE__?.['webapp.app-context']?.user;
+      if (me?.uid && me?.secUid) {
+        window.postMessage({ source: SOURCE, viewer: { id: String(me.uid), secUid: me.secUid, username: me.uniqueId || '' } }, location.origin);
+      }
+    } catch {  }
   };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', scanEmbedded, { once: true });
   else scanEmbedded();

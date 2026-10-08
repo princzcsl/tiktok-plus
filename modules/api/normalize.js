@@ -19,15 +19,31 @@ function pickVideoUrls(video) {
       height: Math.min(b.PlayAddr?.Width || 0, b.PlayAddr?.Height || 0) || 0,
       bitrate: b.Bitrate || 0
     }))
-    .filter(v => v.urls.length)
-    .sort((a, b) => (Number(b.h264) - Number(a.h264)) || (b.height - a.height) || (b.bitrate - a.bitrate));
+    .filter(v => v.urls.length);
 
-  const urls = unique([
-    ...variants.flatMap(v => v.urls),
-    ...urlsOf(video.playAddr),
-    ...urlsOf(video.downloadAddr)
-  ]);
-  return { urls, quality: variants[0]?.height || Math.min(video.width || 0, video.height || 0) || 0 };
+  const byQuality = (a, b) => (b.height - a.height) || (Number(b.h264) - Number(a.h264)) || (b.bitrate - a.bitrate);
+  const byCompat = (a, b) => (Number(b.h264) - Number(a.h264)) || byQuality(a, b);
+  const fallback = Math.min(video.width || 0, video.height || 0) || 0;
+
+  const build = (sorted) => ({
+    urls: unique([
+      ...sorted.flatMap(v => v.urls),
+      ...urlsOf(video.playAddr),
+      ...urlsOf(video.downloadAddr)
+    ]),
+    quality: sorted[0]?.height || fallback
+  });
+
+  return { best: build([...variants].sort(byQuality)), compat: build([...variants].sort(byCompat)) };
+}
+
+export function timeFromId(id) {
+  try {
+    const seconds = Number(BigInt(String(id)) >> 32n);
+    return seconds > 1400000000 && seconds < Date.now() / 1000 + 86400 ? seconds : 0;
+  } catch {
+    return 0;
+  }
 }
 
 function largestZoomCover(zoomCover) {
@@ -63,19 +79,25 @@ export function normalizeItem(raw) {
     .filter(img => img.urls.length);
 
   const isPhoto = images.length > 0;
-  const picked = isPhoto ? { urls: [], quality: 0 } : pickVideoUrls(video);
+  const none = { urls: [], quality: 0 };
+  const picked = isPhoto ? { best: none, compat: none } : pickVideoUrls(video);
+  const music = raw.music || {};
 
   return {
     id: String(raw.id),
     desc: raw.desc || '',
-    createTime: Number(raw.createTime) || 0,
+    createTime: Number(raw.createTime) || timeFromId(raw.id),
     username: author?.uniqueId || (typeof raw.author === 'string' ? raw.author : '') || '',
     nickname: author?.nickname || '',
     authorId: author?.id ? String(author.id) : (raw.authorId ? String(raw.authorId) : null),
     avatar: author ? normalizeUser(author).avatarThumb : '',
     type: isPhoto ? 'photo' : 'video',
-    videoUrls: picked.urls,
-    quality: picked.quality,
+    video: picked,
+    audio: {
+      urls: unique(urlsOf(music.playUrl)),
+      title: music.title || '',
+      author: music.authorName || ''
+    },
     width: video.width || 0,
     height: video.height || 0,
     duration: video.duration || 0,

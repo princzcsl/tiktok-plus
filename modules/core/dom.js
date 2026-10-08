@@ -54,6 +54,21 @@ export function stopEvent(e) {
   e.stopPropagation();
 }
 
+export async function copyText(text) {
+  try {
+    await navigator.clipboard.writeText(String(text));
+    return true;
+  } catch {
+    const area = h('textarea', { style: 'position:fixed;opacity:0' });
+    area.value = String(text);
+    document.body.append(area);
+    area.select();
+    const ok = document.execCommand('copy');
+    area.remove();
+    return ok;
+  }
+}
+
 export function mediaKey(url) {
   if (!url || url.startsWith('blob:') || url.startsWith('data:')) return null;
   try {

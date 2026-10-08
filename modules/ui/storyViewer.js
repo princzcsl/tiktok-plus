@@ -1,7 +1,8 @@
 import { h, clear } from '../core/dom.js';
 import { t, errorMessage, timeAgo } from '../core/i18n.js';
 import { fetchUser, fetchStories } from '../api/tiktok.js';
-import { downloadMedia, downloadThumbnail } from '../services/downloads.js';
+import { downloadMedia, downloadThumbnail, downloadItem, openBatch } from '../services/downloads.js';
+import { toast } from './toast.js';
 import { icon } from './icons.js';
 import { openOverlay } from './overlay.js';
 import { toolbarButton } from './imageViewer.js';
@@ -51,6 +52,7 @@ export function openStoryViewer(username) {
       muteButton,
       toolbarButton('download', t('DOWNLOAD'), () => items[index] && runDownload(() => downloadMedia(items[index]))),
       toolbarButton('image', t('MENU_THUMB'), () => items[index] && runDownload(() => downloadThumbnail(items[index]), { thumbnail: true })),
+      toolbarButton('downloadAll', t('STORIES_DOWNLOAD_ALL'), () => downloadAllStories()),
       toolbarButton('close', t('CLOSE'), close)
     )
   );
@@ -138,7 +140,7 @@ export function openStoryViewer(username) {
     nextButton.disabled = index === items.length - 1;
 
     if (item.type === 'video') {
-      const urls = [...item.videoUrls];
+      const urls = [...item.video.compat.urls];
       if (!urls.length) return failed();
       const video = h('video', {
         class: 'ttp-story-media',
@@ -188,6 +190,36 @@ export function openStoryViewer(username) {
       return;
     }
     show(next);
+  }
+
+  async function downloadAllStories() {
+    if (!items.length) return;
+    const wasPaused = paused;
+    togglePause(true);
+
+    let dir;
+    try {
+      dir = await openBatch();
+    } catch (error) {
+      if (error.name !== 'AbortError') toast.error(error);
+      if (!wasPaused) togglePause(false);
+      return;
+    }
+
+    const progress = toast.progress(t('DL_PROGRESS', { done: 0, total: items.length }));
+    let failed = 0;
+    for (const [i, item] of items.entries()) {
+      try {
+        await downloadItem(item, dir);
+      } catch {
+        failed++;
+      }
+      progress.update(t('DL_PROGRESS', { done: i + 1, total: items.length }), (i + 1) / items.length);
+    }
+    const done = items.length - failed;
+    const message = dir ? t('DL_ALL_SAVED_AT', { n: done, where: dir.name }) : t('DL_ALL_DONE', { n: done });
+    if (failed) progress.fail(`${message} · ${t('N_FAILED', { n: failed })}`);
+    else progress.done(message);
   }
 
   (async () => {

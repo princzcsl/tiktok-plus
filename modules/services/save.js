@@ -8,7 +8,7 @@ export function isPickerSupported() {
 
 const isMedia = (blob) => blob.size > 512 && !/text\/html|json/i.test(blob.type);
 
-async function fetchBlob(urls) {
+async function fetchFrom(urls) {
   for (const url of urls) {
     try {
       const response = await fetch(url, { credentials: 'include' });
@@ -22,16 +22,33 @@ async function fetchBlob(urls) {
   return (await fetch(dataUrl)).blob();
 }
 
-async function writeFile(handle, urls) {
-  const blob = await fetchBlob(urls);
+export async function fetchBlob(urls, refresh = null) {
+  try {
+    return await fetchFrom(urls);
+  } catch (error) {
+    if (!refresh || error.message !== 'no_url') throw error;
+    return fetchFrom(await refresh());
+  }
+}
+
+async function writeFile(handle, urls, refresh) {
+  const blob = await fetchBlob(urls, refresh);
   const writable = await handle.createWritable();
   await writable.write(blob);
   await writable.close();
 }
 
-export async function saveWithPicker(urls, filename) {
+export async function saveWithPicker(urls, filename, refresh = null) {
   const handle = await window.showSaveFilePicker({ id: PICKER_ID, suggestedName: filename, startIn: 'downloads' });
-  await writeFile(handle, urls);
+  await writeFile(handle, urls, refresh);
+  return handle.name;
+}
+
+export async function saveBlobWithPicker(makeBlob, filename) {
+  const handle = await window.showSaveFilePicker({ id: PICKER_ID, suggestedName: filename, startIn: 'downloads' });
+  const writable = await handle.createWritable();
+  await writable.write(await makeBlob());
+  await writable.close();
   return handle.name;
 }
 
@@ -54,8 +71,11 @@ async function uniqueName(dir, filename) {
   return `${base}-${Date.now()}${ext}`;
 }
 
-export async function saveIntoDirectory(dir, urls, filename) {
+export async function saveIntoDirectory(dir, urls, filename, refresh = null) {
+  const blob = await fetchBlob(urls, refresh);
   const name = await uniqueName(dir, filename);
-  await writeFile(await dir.getFileHandle(name, { create: true }), urls);
+  const writable = await (await dir.getFileHandle(name, { create: true })).createWritable();
+  await writable.write(blob);
+  await writable.close();
   return `${dir.name} › ${name}`;
 }

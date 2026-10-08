@@ -6,9 +6,25 @@ const users = new Map();
 const usernames = new Map();
 const stories = new Map();
 
-const hasMedia = (item) => item.videoUrls.length > 0 || item.images.length > 0;
+const hasMedia = (item) => item.video.best.urls.length > 0 || item.images.length > 0;
+
+let viewer = null;
+const userListeners = new Set();
+
+export const getPageViewer = () => viewer;
+
+export function onPageUsers(callback) {
+  userListeners.add(callback);
+  return () => userListeners.delete(callback);
+}
 
 export function ingest(data) {
+  if (data.viewer?.id) viewer = data.viewer;
+  if (data.users?.length) {
+    const seen = data.users.map(normalizeUser).filter(u => u.username);
+    userListeners.forEach(cb => cb(seen));
+  }
+
   for (const raw of data.users || []) {
     const user = normalizeUser(raw);
     const previous = users.get(user.id);
@@ -40,6 +56,7 @@ export function initPageData() {
 }
 
 export const getItem = (id) => items.get(String(id)) || null;
+export const forgetItem = (id) => items.delete(String(id));
 export const getUserById = (id) => users.get(String(id)) || null;
 export const getUserByName = (username) => getUserById(usernames.get(String(username).toLowerCase())) || null;
 export const getStoryItems = (authorId) => [...(stories.get(String(authorId))?.values() || [])];

@@ -1,70 +1,98 @@
 import { sendBackground } from '../core/runtime.js';
 import { sanitizeFilename } from '../core/dom.js';
-import { isPickerSupported, saveWithPicker, pickDirectory, saveIntoDirectory } from './save.js';
+import { cachedSettings } from '../core/storage.js';
+import { fetchItem } from '../api/tiktok.js';
+import { isPickerSupported, saveWithPicker, saveBlobWithPicker, pickDirectory, saveIntoDirectory } from './save.js';
 
-function stamp(date) {
-  const pad = (n) => String(n).padStart(2, '0');
-  return `${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}-${pad(date.getHours())}${pad(date.getMinutes())}${pad(date.getSeconds())}`;
-}
+const DOWNLOAD_ROOT = 'TikTok+';
 
-export function buildName({ username, kind, id, createTime, index = null }) {
-  const date = stamp(createTime ? new Date(createTime * 1000) : new Date());
-  const name = [username || 'tiktok', kind, date, index != null ? String(index + 1).padStart(2, '0') : null, id]
-    .filter(Boolean)
-    .join('_');
-  return sanitizeFilename(name);
+export function buildName(username, ...parts) {
+  return sanitizeFilename([`@${username || 'tiktok'}`, ...parts.filter(part => part !== null && part !== undefined && part !== '')].join('_'));
 }
 
 function guessExt(urls, fallback) {
   try {
-    const match = new URL(urls[0]).pathname.match(/\.(mp4|jpe?g|png|webp|gif|avif)(?:$|[~?])/i);
+    const match = new URL(urls[0]).pathname.match(/\.(mp4|mp3|m4a|jpe?g|png|webp|gif|avif)(?:$|[~?])/i);
     if (match) return match[1].toLowerCase().replace('jpeg', 'jpg');
   } catch {  }
   return fallback;
 }
 
-async function downloadFile(urls, name, fallbackExt, dir = null) {
-  if (!urls?.length) throw new Error('no_url');
-  const filename = `${name}.${guessExt(urls, fallbackExt)}`;
+const askMode = () => cachedSettings().saveMode !== 'downloads';
 
-  if (dir) return saveIntoDirectory(dir, urls, filename);
-  if (isPickerSupported()) return saveWithPicker(urls, filename);
-  await sendBackground({ action: 'download', urls, filename: name, fallbackExt, saveAs: true });
-  return null;
+async function downloadFile(urls, name, fallbackExt, dir = null, refresh = null) {
+  if (!urls?.length && !refresh) throw new Error('no_url');
+  const filename = `${name}.${guessExt(urls?.length ? urls : [''], fallbackExt)}`;
+
+  if (dir) return saveIntoDirectory(dir, urls, filename, refresh);
+  if (askMode() && isPickerSupported()) return saveWithPicker(urls, filename, refresh);
+
+  const send = (list) => sendBackground({ action: 'download', urls: list, filename: askMode() ? name : `${DOWNLOAD_ROOT}/${name}`, fallbackExt, saveAs: askMode() });
+  try {
+    await send(urls);
+  } catch (error) {
+    if (!refresh || error.message !== 'no_url') throw error;
+    await send(await refresh());
+  }
+  return askMode() ? null : `${DOWNLOAD_ROOT} › ${filename}`;
 }
 
-const kindOf = (item, base) => (item.isStory ? `story-${base}` : base);
+export async function openBatch() {
+  return askMode() && isPickerSupported() ? pickDirectory() : null;
+}
 
-export function downloadVideo(item) {
-  return downloadFile(item.videoUrls, buildName({ ...item, kind: kindOf(item, 'video') }), 'mp4');
+export const videoVariant = (item) => item.video[cachedSettings().quality === 'compat' ? 'compat' : 'best'];
+
+export function downloadVideo(item, dir = null) {
+  const refresh = async () => videoVariant(await fetchItem(item.id, item.username, { fresh: true })).urls;
+  return downloadFile(videoVariant(item).urls, buildName(item.username, item.id), 'mp4', dir, refresh);
 }
 
 export function downloadPhoto(item, index, dir = null) {
-  return downloadFile(
-    item.images[index]?.urls,
-    buildName({ ...item, kind: kindOf(item, 'photo'), index: item.images.length > 1 ? index : null }),
-    'jpg',
-    dir
-  );
+  const suffix = item.images.length > 1 ? String(index + 1).padStart(2, '0') : null;
+  return downloadFile(item.images[index]?.urls, buildName(item.username, item.id, suffix), 'jpg', dir);
 }
 
-export async function downloadAllPhotos(item, onProgress = () => {}) {
-  const dir = isPickerSupported() ? await pickDirectory() : null;
+export async function downloadAllPhotos(item, onProgress = () => {}, dir = null) {
+  const target = dir || await openBatch();
   for (let index = 0; index < item.images.length; index++) {
-    await downloadPhoto(item, index, dir);
+    await downloadPhoto(item, index, target);
     onProgress(index + 1, item.images.length);
   }
-  return dir?.name || null;
+  return target?.name || null;
 }
 
 export function downloadThumbnail(item) {
-  return downloadFile(item.coverUrls, buildName({ ...item, kind: kindOf(item, 'thumb') }), 'jpg');
+  return downloadFile(item.coverUrls, buildName(item.username, item.id, 'miniature'), 'jpg');
+}
+
+export function downloadAudio(item) {
+  return downloadFile(item.audio.urls, buildName(item.username, item.id), 'mp3');
 }
 
 export function downloadAvatar(user) {
-  return downloadFile([user.avatarHD], buildName({ username: user.username, kind: 'avatar', id: user.id }), 'jpg');
+  return downloadFile([user.avatarHD], buildName(user.username, 'photo-profil'), 'jpg');
+}
+
+export async function downloadItem(item, dir = null) {
+  if (item.type === 'photo') {
+    for (let index = 0; index < item.images.length; index++) await downloadPhoto(item, index, dir);
+    return;
+  }
+  await downloadVideo(item, dir);
 }
 
 export function downloadMedia(item, photoIndex = 0) {
   return item.type === 'photo' ? downloadPhoto(item, photoIndex) : downloadVideo(item);
+}
+
+export async function downloadCanvas(canvas, item) {
+  const filename = `${buildName(item.username, item.id, 'capture')}.png`;
+  const toBlob = () => new Promise((resolve, reject) => canvas.toBlob(blob => (blob ? resolve(blob) : reject(new Error('capture_failed'))), 'image/png'));
+
+  if (askMode() && isPickerSupported()) return saveBlobWithPicker(toBlob, filename);
+
+  const dataUrl = canvas.toDataURL('image/png');
+  await sendBackground({ action: 'downloadDataUrl', dataUrl, filename: askMode() ? filename : `${DOWNLOAD_ROOT}/${filename}`, saveAs: askMode() });
+  return askMode() ? null : `${DOWNLOAD_ROOT} › ${filename}`;
 }

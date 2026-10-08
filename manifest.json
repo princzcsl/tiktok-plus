@@ -1,9 +1,9 @@
 {
   "manifest_version": 3,
   "name": "TikTok+",
-  "version": "1.1",
-  "description": "Outils TikTok : téléchargement des vidéos (sans filigrane), photos, stories et miniatures, stories en mode fantôme, photos de profil en HD.",
-  "permissions": ["downloads", "declarativeNetRequestWithHostAccess"],
+  "version": "1.2",
+  "description": "Outils TikTok : téléchargements (vidéos sans filigrane, photos, sons, stories, profils entiers), stories en mode fantôme, photos de profil HD, suivi des IDs et des abonnements.",
+  "permissions": ["downloads", "declarativeNetRequestWithHostAccess", "storage", "unlimitedStorage", "scripting"],
   "host_permissions": [
     "*://*.tiktok.com/*",
     "*://*.tiktokcdn.com/*",
@@ -50,6 +50,12 @@
       "matches": ["https://*.tiktok.com/*"]
     }
   ],
+  "commands": {
+    "open-panel": {
+      "suggested_key": { "default": "Alt+Shift+T" },
+      "description": "Ouvrir le panneau TikTok+"
+    }
+  },
   "action": {
     "default_title": "TikTok+",
     "default_icon": {

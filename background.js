@@ -52,6 +52,16 @@ function assertUrl(url) {
 
 const HANDLERS = {
   download: async ({ urls, filename, fallbackExt, saveAs }) => download(urls.map(assertUrl), filename, fallbackExt, saveAs),
+  downloadDataUrl: async ({ dataUrl, filename, saveAs }) => {
+    if (!String(dataUrl).startsWith('data:image/')) throw new Error('invalid_url');
+    const downloadId = await chrome.downloads.download({ url: dataUrl, filename, conflictAction: 'uniquify', saveAs: Boolean(saveAs) });
+    return { downloadId };
+  },
+  setBadge: async ({ count }) => {
+    await chrome.action.setBadgeBackgroundColor({ color: '#fe2c55' });
+    await chrome.action.setBadgeText({ text: count > 0 ? (count > 99 ? '99+' : String(count)) : '' });
+    return {};
+  },
   fetchDataUrl: async ({ urls }) => {
     const { blob } = await fetchFirst(urls.map(assertUrl));
     return { dataUrl: await blobToDataUrl(blob) };
@@ -80,6 +90,11 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 const MIME_EXTENSIONS = {
   'video/mp4': 'mp4',
   'video/quicktime': 'mov',
+  'audio/mpeg': 'mp3',
+  'audio/mp3': 'mp3',
+  'audio/mp4': 'm4a',
+  'audio/x-m4a': 'm4a',
+  'audio/aac': 'aac',
   'image/jpeg': 'jpg',
   'image/jpg': 'jpg',
   'image/png': 'png',
@@ -92,7 +107,7 @@ const MIME_EXTENSIONS = {
 function extensionOf(blob, url, fallback) {
   const fromMime = MIME_EXTENSIONS[(blob.type || '').split(';')[0].trim().toLowerCase()];
   if (fromMime) return fromMime;
-  const match = new URL(url).pathname.match(/\.(mp4|jpe?g|png|webp|gif|avif)(?:$|[~?])/i);
+  const match = new URL(url).pathname.match(/\.(mp4|mp3|m4a|jpe?g|png|webp|gif|avif)(?:$|[~?])/i);
   if (match) return match[1].toLowerCase().replace('jpeg', 'jpg');
   return fallback || 'bin';
 }
@@ -154,7 +169,29 @@ function blobToDataUrl(blob) {
 }
 
 
-chrome.action.onClicked.addListener((tab) => {
+async function openPanelIn(tab, panelTab = 'following') {
   const isTikTok = /^https:\/\/([a-z0-9-]+\.)?tiktok\.com\//.test(tab?.url || '');
-  if (!isTikTok) chrome.tabs.create({ url: 'https://www.tiktok.com/' });
+
+  if (!isTikTok) {
+    await chrome.tabs.create({ url: 'https://www.tiktok.com/' });
+    return;
+  }
+
+  const message = { action: 'openPanel', tab: panelTab };
+  try {
+    await chrome.tabs.sendMessage(tab.id, message);
+  } catch {
+    log('🔁', 'Content script absent, réinjection');
+    await chrome.scripting.insertCSS({ target: { tabId: tab.id }, files: ['styles.css'] });
+    await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ['content.js'] });
+    setTimeout(() => chrome.tabs.sendMessage(tab.id, message).catch(() => {}), 800);
+  }
+}
+
+chrome.action.onClicked.addListener((tab) => openPanelIn(tab));
+
+chrome.commands.onCommand.addListener(async (command, tab) => {
+  if (command !== 'open-panel') return;
+  const target = tab || (await chrome.tabs.query({ active: true, currentWindow: true }))[0];
+  openPanelIn(target);
 });

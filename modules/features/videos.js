@@ -1,20 +1,27 @@
-import { mediaKey } from '../core/dom.js';
-import { t } from '../core/i18n.js';
+import { h, mediaKey } from '../core/dom.js';
+import { t, formatDate, formatDuration } from '../core/i18n.js';
 import { logger } from '../core/logger.js';
 import { parseRoute } from '../core/router.js';
+import { cachedSettings } from '../core/storage.js';
 import { fetchItem } from '../api/tiktok.js';
 import { findItemByMediaKeys } from '../api/pageData.js';
-import { downloadVideo, downloadThumbnail, downloadPhoto } from '../services/downloads.js';
+import { timeFromId } from '../api/normalize.js';
+import {
+  downloadVideo, downloadThumbnail, downloadPhoto, downloadAudio, downloadCanvas, videoVariant
+} from '../services/downloads.js';
 import { openMenu } from '../ui/menu.js';
 import { runDownload, runDownloadPhotos } from '../ui/actions.js';
 import { openImageViewer } from '../ui/imageViewer.js';
 import { featureButton, removeInjected } from './common.js';
+import { speedButton } from './speed.js';
 
 const FEATURE = 'videos';
 
 const LIKE_ICONS = '[data-e2e="like-icon"], [data-e2e="browse-like-icon"], [data-e2e="video-player-like-icon"]';
 const SIBLING_ICONS = '[data-e2e="share-icon"], [data-e2e="browse-share-icon"], [data-e2e="comment-icon"], [data-e2e="browse-comment-icon"]';
 const SHARE_ICONS = '[data-e2e="share-icon"], [data-e2e="browse-share-icon"]';
+const DESCRIPTIONS = '[data-e2e="video-desc"], [data-e2e="browse-video-desc"]';
+const FEED_ITEMS = 'article, [data-e2e="recommend-list-item-container"]';
 const ITEM_SCOPES = 'article, [data-e2e="recommend-list-item-container"], [data-e2e="feed-video"], [class*="DivItemContainer"]';
 const PLAYER_ID = /^xgwrapper-\d+-(\d{8,})$/;
 const ITEM_LINK = /\/(?:video|photo)\/(\d{8,})/;
@@ -32,42 +39,94 @@ function usernameIn(scope) {
   return fromHref ? decodeURIComponent(fromHref) : (link?.textContent.trim() || '');
 }
 
-function resolveItem(anchor) {
+export function resolveItem(anchor) {
   const route = parseRoute();
   const scope = anchor.closest(ITEM_SCOPES);
 
   if (scope) {
     const id = idFromPlayer(scope) ||
       scope.querySelector('a[href*="/video/"], a[href*="/photo/"]')?.getAttribute('href').match(ITEM_LINK)?.[1];
-    if (id) return { id, username: usernameIn(scope) };
+    if (id) return { id, username: usernameIn(scope), scope };
 
     const keys = [...scope.querySelectorAll('img[src], video[poster]')].map(el => mediaKey(el.src || el.poster));
     const item = findItemByMediaKeys(keys);
-    if (item) return { id: item.id, username: item.username };
+    if (item) return { id: item.id, username: item.username, scope };
   }
 
-  if (route.type === 'item') return { id: route.itemId, username: route.username };
+  if (route.type === 'item') return { id: route.itemId, username: route.username, scope: null };
 
   let el = anchor.parentElement;
   for (let depth = 0; el && el !== document.body && depth < 12; depth++, el = el.parentElement) {
     const players = el.querySelectorAll('[id^="xgwrapper-"]');
     if (players.length > 1) break;
     const id = players.length === 1 ? idFromPlayer(el) : null;
-    if (id) return { id, username: usernameIn(el) };
+    if (id) return { id, username: usernameIn(el), scope: el };
   }
   return null;
 }
 
+export function currentTarget() {
+  const route = parseRoute();
+  if (route.type === 'item') {
+    return { id: route.itemId, username: route.username, scope: null };
+  }
 
-export function itemMenuItems(item) {
+  const middle = innerHeight / 2;
+  let best = null;
+  for (const el of document.querySelectorAll(FEED_ITEMS)) {
+    const rect = el.getBoundingClientRect();
+    if (rect.bottom < 0 || rect.top > innerHeight) continue;
+    const distance = Math.abs(rect.top + rect.height / 2 - middle);
+    if (!best || distance < best.distance) best = { el, distance };
+  }
+  return best ? resolveItem(best.el) : null;
+}
+
+function findVideoElement(scope) {
+  const videos = [...(scope || document).querySelectorAll('video')]
+    .filter(v => v.videoWidth && !v.closest('.ttp-root'))
+    .map(v => ({ v, area: v.getBoundingClientRect().width * v.getBoundingClientRect().height }))
+    .filter(x => x.area > 0)
+    .sort((a, b) => b.area - a.area);
+  return videos[0]?.v || null;
+}
+
+
+function grabFrame(video) {
+  const canvas = document.createElement('canvas');
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+  const context = canvas.getContext('2d');
+  context.drawImage(video, 0, 0);
+  try {
+    context.getImageData(0, 0, 1, 1);
+  } catch {
+    throw new Error('capture_tainted');
+  }
+  return canvas;
+}
+
+export function captureItem(item, scope) {
+  const video = findVideoElement(scope);
+  if (!video) throw new Error('capture_no_video');
+  const canvas = grabFrame(video);
+  return runDownload(() => downloadCanvas(canvas, item));
+}
+
+
+export function itemMenuItems(item, { scope = null, withCapture = true } = {}) {
   const isPhoto = item.type === 'photo';
   const count = item.images.length;
+  const variant = videoVariant(item);
+  const meta = [formatDate(item.createTime), !isPhoto && item.duration ? formatDuration(item.duration) : null, isPhoto ? t('N_PHOTOS', { n: count }) : null]
+    .filter(Boolean).join(' · ');
 
   return [
+    { type: 'header', label: `@${item.username}`, sublabel: meta },
     isPhoto ? null : {
       icon: 'download',
       label: t('MENU_VIDEO'),
-      hint: item.quality ? `${item.quality}p` : null,
+      hint: variant.quality ? `${variant.quality}p` : null,
       onSelect: () => runDownload(() => downloadVideo(item))
     },
     isPhoto ? {
@@ -90,7 +149,18 @@ export function itemMenuItems(item) {
       icon: 'image',
       label: t('MENU_THUMB'),
       onSelect: () => runDownload(() => downloadThumbnail(item), { thumbnail: true })
-    }
+    },
+    item.audio.urls.length ? {
+      icon: 'music',
+      label: t('MENU_AUDIO'),
+      hint: 'MP3',
+      onSelect: () => runDownload(() => downloadAudio(item))
+    } : null,
+    !isPhoto && withCapture ? {
+      icon: 'camera',
+      label: t('MENU_CAPTURE'),
+      onSelect: () => captureItem(item, scope)
+    } : null
   ];
 }
 
@@ -98,7 +168,7 @@ async function menuItems(anchor) {
   const target = resolveItem(anchor);
   if (!target) return [{ type: 'message', label: t('ITEM_NOT_FOUND'), error: true }];
   logger.info('Publication', target.id, target.username);
-  return itemMenuItems(await fetchItem(target.id, target.username));
+  return itemMenuItems(await fetchItem(target.id, target.username), { scope: target.scope });
 }
 
 
@@ -116,27 +186,61 @@ function directChild(parent, node) {
   return el;
 }
 
-function inject() {
+function injectButtons() {
+  const { showSpeedButton } = cachedSettings();
+
   document.querySelectorAll(LIKE_ICONS).forEach(like => {
     const bar = findActionBar(like);
-    if (!bar || bar.querySelector(':scope > .ttp-dl-btn')) return;
-
-    const after = directChild(bar, bar.querySelector(SHARE_ICONS) || like);
-    if (!after) return;
+    if (!bar) return;
 
     const vertical = getComputedStyle(bar).flexDirection.startsWith('column');
-    const button = featureButton(FEATURE, {
-      className: ['ttp-dl-btn', vertical ? 'ttp-dl-btn--vertical' : 'ttp-dl-btn--inline'],
-      iconName: 'download',
-      label: t('DL_BTN'),
-      size: vertical ? 22 : 20,
-      stroke: 2.4,
-      onClick: (anchor) => {
-        openMenu(anchor, () => menuItems(anchor), { placement: vertical ? 'top' : 'bottom' });
-      }
-    });
+    const layout = vertical ? 'ttp-dl-btn--vertical' : 'ttp-dl-btn--inline';
+    let download = bar.querySelector(':scope > .ttp-dl-btn');
 
-    after.insertAdjacentElement('afterend', button);
+    if (!download) {
+      const after = directChild(bar, bar.querySelector(SHARE_ICONS) || like);
+      if (!after) return;
+      download = featureButton(FEATURE, {
+        className: ['ttp-dl-btn', layout],
+        iconName: 'download',
+        label: t('DL_BTN'),
+        size: vertical ? 22 : 20,
+        stroke: 2.4,
+        onClick: (anchor) => {
+          openMenu(anchor, () => menuItems(anchor), { placement: vertical ? 'top' : 'bottom', minWidth: 240 });
+        }
+      });
+      after.insertAdjacentElement('afterend', download);
+    }
+
+    const speed = bar.querySelector(':scope > .ttp-speed-btn');
+    if (showSpeedButton && !speed) download.insertAdjacentElement('afterend', speedButton(FEATURE, layout, vertical));
+    else if (!showSpeedButton && speed) speed.remove();
+  });
+}
+
+function injectDates() {
+  if (!cachedSettings().showDate) {
+    document.querySelectorAll('.ttp-date').forEach(el => el.remove());
+    return;
+  }
+
+  document.querySelectorAll(DESCRIPTIONS).forEach(desc => {
+    const target = resolveItem(desc);
+    const seconds = target ? timeFromId(target.id) : 0;
+    let chip = desc.nextElementSibling?.classList.contains('ttp-date') ? desc.nextElementSibling : null;
+
+    if (!seconds) return chip?.remove();
+    if (chip?.dataset.id === target.id) return;
+
+    const label = formatDate(seconds);
+    if (!chip) {
+      chip = h('div', { class: 'ttp-date', dataset: { ttpFeature: FEATURE } });
+      desc.insertAdjacentElement('afterend', chip);
+    }
+    chip.dataset.id = target.id;
+    chip.title = t('PUBLISHED_AT', { date: label });
+    chip.textContent = `🗓 ${label}`;
   });
 }
 
@@ -144,7 +248,10 @@ export const videosFeature = {
   name: FEATURE,
   routes: '*',
   enter() {},
-  scan: inject,
+  scan() {
+    injectButtons();
+    injectDates();
+  },
   leave() {
     removeInjected(FEATURE);
   }

@@ -1,14 +1,23 @@
 import { logger } from './core/logger.js';
+import { t } from './core/i18n.js';
 import { watchTheme } from './core/theme.js';
+import { getSettings, store } from './core/storage.js';
 import { parseRoute, watchUrl } from './core/router.js';
 import { isExtensionAlive } from './core/runtime.js';
-import { initPageData } from './api/pageData.js';
+import { initPageData, onPageUsers } from './api/pageData.js';
+import { getMarks, observeUsers } from './services/ids.js';
+import { startSyncScheduler } from './services/sync.js';
 import { closeMenuIfDetached } from './ui/menu.js';
+import { openPanel } from './ui/panel.js';
+import { toast } from './ui/toast.js';
 import { videosFeature } from './features/videos.js';
+import { tilesFeature } from './features/tiles.js';
 import { profileFeature } from './features/profile.js';
+import { initSpeed } from './features/speed.js';
+import { initShortcuts } from './features/shortcuts.js';
 
 const SCAN_THROTTLE = 250;
-const FEATURES = [videosFeature, profileFeature];
+const FEATURES = [videosFeature, tilesFeature, profileFeature];
 
 const active = new Map();
 let observer = null;
@@ -79,17 +88,53 @@ function shutdown() {
 
 function boot() {
   watchTheme();
+  initSpeed();
+  initShortcuts();
   applyRoute();
 
   observer = new MutationObserver(scheduleScan);
   observer.observe(document.body, { childList: true, subtree: true });
 
   watchUrl(() => applyRoute());
+
+  store.onChange('settings', scheduleScan);
+
+  chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
+    if (request.action === 'openPanel') {
+      openPanel({ tab: request.tab || 'following' });
+      sendResponse({ ok: true });
+    }
+  });
+
+  startSyncScheduler();
+  watchMarkedRenames();
   logger.success('Extension chargée');
+}
+
+function watchMarkedRenames() {
+  const pending = new Map();
+  let timer = null;
+
+  const flush = async () => {
+    const batch = [...pending.values()];
+    pending.clear();
+    const marks = await getMarks();
+    const relevant = batch.filter(user => marks[user.id]);
+    if (!relevant.length) return;
+    const renamed = await observeUsers(relevant);
+    renamed.forEach(r => toast(t('MARK_RENAMED_TOAST', { from: r.from, to: r.to }), { duration: 6000 }));
+  };
+
+  onPageUsers((users) => {
+    users.forEach(u => pending.set(u.id, u));
+    clearTimeout(timer);
+    timer = setTimeout(() => flush().catch(() => {}), 1500);
+  });
 }
 
 export async function start() {
   initPageData();
+  await getSettings();
 
   if (document.body) boot();
   else document.addEventListener('DOMContentLoaded', boot, { once: true });

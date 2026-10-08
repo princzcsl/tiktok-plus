@@ -1,6 +1,7 @@
 import { logger } from '../core/logger.js';
 import { findRaw } from './normalize.js';
-import { ingest, getItem, getUserByName, getStoryItems, itemHasMedia } from './pageData.js';
+import { normalizeUser } from './normalize.js';
+import { ingest, getItem, forgetItem, getUserByName, getStoryItems, itemHasMedia, getPageViewer } from './pageData.js';
 
 const REQUEST_TIMEOUT = 15000;
 
@@ -16,7 +17,7 @@ window.addEventListener('message', (event) => {
   resolve(event.data);
 });
 
-function pageRequest(path, params = {}) {
+export function pageRequest(path, params = {}) {
   return new Promise((resolve, reject) => {
     const id = `ttp_${Date.now()}_${++sequence}`;
     const timer = setTimeout(() => {
@@ -56,9 +57,10 @@ function remember(root, { story = false } = {}) {
 }
 
 
-export async function fetchItem(id, username = '') {
+export async function fetchItem(id, username = '', { fresh = false } = {}) {
   const cached = getItem(id);
-  if (cached && itemHasMedia(cached)) return cached;
+  if (cached && itemHasMedia(cached) && !fresh) return cached;
+  if (fresh) forgetItem(id);
 
   try {
     const data = await pageRequest('/api/item/detail/', { itemId: id });
@@ -100,6 +102,40 @@ export async function fetchUser(username) {
   const user = getUserByName(username) || cached;
   if (!user) throw new Error('not_found');
   return user;
+}
+
+export async function fetchUserBySecUid(secUid) {
+  const data = await pageRequest('/api/user/detail/', { secUid, uniqueId: '' });
+  const raw = data?.userInfo?.user;
+  if (!raw?.id || !raw.uniqueId) {
+    if (data?.statusCode && data.statusCode !== 0) return null;
+    throw new Error('empty_response');
+  }
+  remember(data.userInfo);
+  return { ...normalizeUser(raw), stats: data.userInfo.stats || {} };
+}
+
+
+let viewerCache = null;
+
+export async function getViewer() {
+  const fromPage = getPageViewer();
+  if (fromPage) return (viewerCache = fromPage);
+  if (viewerCache) return viewerCache;
+
+  const href = document.querySelector('[data-e2e="nav-profile"] a[href^="/@"], a[data-e2e="nav-profile"][href^="/@"]')?.getAttribute('href');
+  const username = href?.match(/^\/@([^/?#]+)/)?.[1];
+  if (!username) return null;
+  const user = await fetchUser(decodeURIComponent(username));
+  viewerCache = { id: user.id, secUid: user.secUid, username: user.username };
+  return viewerCache;
+}
+
+export async function fetchFollowingPage(secUid, minCursor = 0, count = 30) {
+  const data = await pageRequest('/api/user/list/', { secUid, count, maxCursor: 0, minCursor, scene: 21 });
+  if (data?.statusCode && data.statusCode !== 0) throw new Error(`api_${data.statusCode}`);
+  const users = (data?.userList || []).map(entry => entry.user).filter(u => u?.id && u.uniqueId).map(normalizeUser);
+  return { users, hasMore: Boolean(data?.hasMore), cursor: data?.minCursor ?? 0, total: data?.total ?? null };
 }
 
 
