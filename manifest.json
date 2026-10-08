@@ -1,0 +1,61 @@
+{
+  "manifest_version": 3,
+  "name": "TikTok+",
+  "version": "1.1",
+  "description": "Outils TikTok : téléchargement des vidéos (sans filigrane), photos, stories et miniatures, stories en mode fantôme, photos de profil en HD.",
+  "permissions": ["downloads", "declarativeNetRequestWithHostAccess"],
+  "host_permissions": [
+    "*://*.tiktok.com/*",
+    "*://*.tiktokcdn.com/*",
+    "*://*.tiktokcdn-us.com/*",
+    "*://*.tiktokcdn-eu.com/*",
+    "*://*.tiktokv.com/*",
+    "*://*.tiktokv.us/*",
+    "*://*.tiktokv.eu/*",
+    "*://*.ibyteimg.com/*",
+    "*://*.byteoversea.com/*",
+    "*://*.muscdn.com/*"
+  ],
+  "icons": {
+    "16": "icons/16.png",
+    "48": "icons/48.png",
+    "128": "icons/128.png"
+  },
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "declarative_net_request": {
+    "rule_resources": [
+      { "id": "ghost", "enabled": true, "path": "rules/ghost.json" }
+    ]
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://*.tiktok.com/*"],
+      "js": ["page-hook.js"],
+      "run_at": "document_start",
+      "world": "MAIN"
+    },
+    {
+      "matches": ["https://*.tiktok.com/*"],
+      "js": ["content.js"],
+      "css": ["styles.css"],
+      "run_at": "document_start"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["modules/*", "modules/*/*", "icons/*"],
+      "matches": ["https://*.tiktok.com/*"]
+    }
+  ],
+  "action": {
+    "default_title": "TikTok+",
+    "default_icon": {
+      "16": "icons/16.png",
+      "48": "icons/48.png",
+      "128": "icons/128.png"
+    }
+  }
+}
