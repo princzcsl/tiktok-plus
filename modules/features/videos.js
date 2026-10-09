@@ -228,6 +228,32 @@ function directChild(parent, node) {
   return el;
 }
 
+function downloadButton(layout, placement, size) {
+  return featureButton(FEATURE, {
+    className: ['ttp-dl-btn', layout],
+    iconName: 'download',
+    label: t('DL_BTN'),
+    size,
+    stroke: 2.4,
+    onClick: (anchor) => {
+      openMenu(anchor, () => menuItems(anchor), { placement, minWidth: 240 });
+    }
+  });
+}
+
+function injectFloatingTools(card, showSpeedButton) {
+  let tools = card.querySelector(':scope > .ttp-video-tools');
+  if (!tools) {
+    tools = h('div', { class: 'ttp-video-tools', dataset: { ttpFeature: FEATURE } }, downloadButton('ttp-float-btn', 'bottom', 20));
+    ['pointerdown', 'mousedown', 'click', 'dblclick'].forEach(type => tools.addEventListener(type, e => e.stopPropagation()));
+    card.append(tools);
+  }
+
+  const speed = tools.querySelector('.ttp-speed-btn');
+  if (showSpeedButton && !speed) tools.append(speedButton(FEATURE, 'ttp-float-btn', false));
+  else if (!showSpeedButton && speed) speed.remove();
+}
+
 function injectButtons() {
   const { showSpeedButton } = cachedSettings();
 
@@ -236,22 +262,19 @@ function injectButtons() {
     if (!bar) return;
 
     const vertical = getComputedStyle(bar).flexDirection.startsWith('column');
+    const card = vertical ? bar.closest('article')?.querySelector('section[data-e2e="feed-video"]') : null;
+    if (card) {
+      injectFloatingTools(card, showSpeedButton);
+      return;
+    }
+
     const layout = vertical ? 'ttp-dl-btn--vertical' : 'ttp-dl-btn--inline';
     let download = bar.querySelector(':scope > .ttp-dl-btn');
 
     if (!download) {
       const after = directChild(bar, bar.querySelector(SHARE_ICONS) || like);
       if (!after) return;
-      download = featureButton(FEATURE, {
-        className: ['ttp-dl-btn', layout],
-        iconName: 'download',
-        label: t('DL_BTN'),
-        size: vertical ? 22 : 20,
-        stroke: 2.4,
-        onClick: (anchor) => {
-          openMenu(anchor, () => menuItems(anchor), { placement: vertical ? 'top' : 'bottom', minWidth: 240 });
-        }
-      });
+      download = downloadButton(layout, vertical ? 'top' : 'bottom', vertical ? 22 : 20);
       after.insertAdjacentElement('afterend', download);
     }
 
