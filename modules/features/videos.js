@@ -114,10 +114,40 @@ export function captureItem(item, scope) {
 }
 
 
+function visibleArea(el, stop) {
+  let { left, top, right, bottom } = el.getBoundingClientRect();
+  for (let parent = el.parentElement; parent && parent !== stop?.parentElement; parent = parent.parentElement) {
+    if (getComputedStyle(parent).overflow === 'visible') continue;
+    const r = parent.getBoundingClientRect();
+    left = Math.max(left, r.left); top = Math.max(top, r.top);
+    right = Math.min(right, r.right); bottom = Math.min(bottom, r.bottom);
+  }
+  left = Math.max(left, 0); top = Math.max(top, 0);
+  right = Math.min(right, innerWidth); bottom = Math.min(bottom, innerHeight);
+  return Math.max(0, right - left) * Math.max(0, bottom - top);
+}
+
+export function currentPhotoIndex(item, scope) {
+  if (item.type !== 'photo' || item.images.length < 2) return item.type === 'photo' ? 0 : null;
+  const keys = item.images.map(img => new Set(img.urls.map(mediaKey).filter(Boolean)));
+
+  let best = null;
+  for (const img of (scope || document).querySelectorAll('img[src]')) {
+    if (img.closest('.ttp-root')) continue;
+    const key = mediaKey(img.currentSrc || img.src);
+    const index = key ? keys.findIndex(set => set.has(key)) : -1;
+    if (index < 0) continue;
+    const area = visibleArea(img, scope);
+    if (area > 0 && (!best || area > best.area)) best = { index, area };
+  }
+  return best ? best.index : null;
+}
+
 export function itemMenuItems(item, { scope = null, withCapture = true } = {}) {
   const isPhoto = item.type === 'photo';
   const count = item.images.length;
   const variant = videoVariant(item);
+  const slide = isPhoto && count > 1 && withCapture ? currentPhotoIndex(item, scope) : null;
   const meta = [formatDate(item.createTime), !isPhoto && item.duration ? formatDuration(item.duration) : null, isPhoto ? t('N_PHOTOS', { n: count }) : null]
     .filter(Boolean).join(' · ');
 
@@ -129,20 +159,32 @@ export function itemMenuItems(item, { scope = null, withCapture = true } = {}) {
       hint: variant.quality ? `${variant.quality}p` : null,
       onSelect: () => runDownload(() => downloadVideo(item))
     },
-    isPhoto ? {
+    isPhoto && count === 1 ? {
       icon: 'download',
+      label: t('MENU_PHOTO'),
+      onSelect: () => runDownload(() => downloadPhoto(item, 0))
+    } : null,
+    slide !== null ? {
+      icon: 'download',
+      label: t('MENU_PHOTO_CURRENT'),
+      hint: `${slide + 1}/${count}`,
+      onSelect: () => runDownload(() => downloadPhoto(item, slide))
+    } : null,
+    isPhoto && count > 1 ? {
+      icon: slide !== null ? 'downloadAll' : 'download',
       label: t('MENU_PHOTOS'),
       hint: String(count),
       onSelect: () => runDownloadPhotos(item)
     } : null,
-    isPhoto ? {
+    isPhoto && count > 1 ? {
       icon: 'images',
-      label: t('MENU_PHOTO_VIEW'),
+      label: t('MENU_PHOTO_PICK'),
       onSelect: () => openImageViewer({
         title: `@${item.username}`,
         subtitle: item.desc,
+        startIndex: slide ?? 0,
         load: () => ({ images: item.images }),
-        actions: [{ icon: 'download', label: t('DOWNLOAD'), onClick: (index) => runDownload(() => downloadPhoto(item, index)) }]
+        actions: [{ icon: 'download', label: t('MENU_PHOTO_THIS'), onClick: (index) => runDownload(() => downloadPhoto(item, index)) }]
       })
     } : null,
     {

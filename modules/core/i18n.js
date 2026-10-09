@@ -23,7 +23,10 @@ const STRINGS = {
 
     MENU_VIDEO: 'Vidéo sans filigrane',
     MENU_PHOTOS: 'Toutes les photos',
-    MENU_PHOTO_VIEW: 'Voir les photos',
+    MENU_PHOTO: 'Photo',
+    MENU_PHOTO_CURRENT: 'Photo affichée',
+    MENU_PHOTO_PICK: 'Choisir une photo…',
+    MENU_PHOTO_THIS: 'Télécharger cette photo',
     MENU_THUMB: 'Miniature',
     MENU_AUDIO: 'Son',
     MENU_CAPTURE: 'Capturer l\'image affichée',
@@ -175,7 +178,10 @@ const STRINGS = {
 
     MENU_VIDEO: 'Video, no watermark',
     MENU_PHOTOS: 'All photos',
-    MENU_PHOTO_VIEW: 'View photos',
+    MENU_PHOTO: 'Photo',
+    MENU_PHOTO_CURRENT: 'Current photo',
+    MENU_PHOTO_PICK: 'Pick a photo…',
+    MENU_PHOTO_THIS: 'Download this photo',
     MENU_THUMB: 'Thumbnail',
     MENU_AUDIO: 'Sound',
     MENU_CAPTURE: 'Capture current frame',
