@@ -17,7 +17,7 @@ async function menuItems(anchor) {
   logger.info('Story', target.id, username);
 
   return [
-    ...itemMenuItems(item, { scope: target.scope }),
+    ...itemMenuItems(item, { scope: target.scope, anchor }),
     username ? { type: 'separator' } : null,
     username ? {
       icon: 'downloadAll',

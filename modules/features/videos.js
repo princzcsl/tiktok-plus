@@ -13,7 +13,7 @@ import { openMenu } from '../ui/menu.js';
 import { runDownload, runDownloadPhotos } from '../ui/actions.js';
 import { openImageViewer } from '../ui/imageViewer.js';
 import { featureButton, removeInjected } from './common.js';
-import { speedButton } from './speed.js';
+import { speedButton, openSpeedMenu, currentSpeedLabel } from './speed.js';
 
 const FEATURE = 'videos';
 
@@ -143,7 +143,7 @@ export function currentPhotoIndex(item, scope) {
   return best ? best.index : null;
 }
 
-export function itemMenuItems(item, { scope = null, withCapture = true } = {}) {
+export function itemMenuItems(item, { scope = null, withCapture = true, anchor = null } = {}) {
   const isPhoto = item.type === 'photo';
   const count = item.images.length;
   const variant = videoVariant(item);
@@ -202,6 +202,13 @@ export function itemMenuItems(item, { scope = null, withCapture = true } = {}) {
       icon: 'camera',
       label: t('MENU_CAPTURE'),
       onSelect: () => captureItem(item, scope)
+    } : null,
+    !isPhoto && anchor ? { type: 'separator' } : null,
+    !isPhoto && anchor ? {
+      icon: 'speed',
+      label: t('SPEED'),
+      hint: currentSpeedLabel(),
+      onSelect: () => openSpeedMenu(anchor, anchor.closest('.ttp-dl-btn--vertical, .ttp-story-dl') ? 'top' : 'bottom')
     } : null
   ];
 }
@@ -210,7 +217,7 @@ async function menuItems(anchor) {
   const target = resolveItem(anchor);
   if (!target) return [{ type: 'message', label: t('ITEM_NOT_FOUND'), error: true }];
   logger.info('Publication', target.id, target.username);
-  return itemMenuItems(await fetchItem(target.id, target.username), { scope: target.scope });
+  return itemMenuItems(await fetchItem(target.id, target.username), { scope: target.scope, anchor });
 }
 
 
@@ -241,38 +248,6 @@ function downloadButton(layout, placement, size) {
   });
 }
 
-function injectFloatingTools(card, showSpeedButton, className = 'ttp-video-tools') {
-  let tools = card.querySelector(':scope > .ttp-video-tools, :scope > .ttp-bar-tools');
-  if (!tools) {
-    tools = h('div', { class: className, dataset: { ttpFeature: FEATURE } }, downloadButton('ttp-float-btn', 'bottom', 20));
-    ['pointerdown', 'mousedown', 'click', 'dblclick'].forEach(type => tools.addEventListener(type, e => e.stopPropagation()));
-    if (getComputedStyle(card).position === 'static') card.style.position = 'relative';
-    card.append(tools);
-  }
-
-  const speed = tools.querySelector('.ttp-speed-btn');
-  if (showSpeedButton && !speed) tools.append(speedButton(FEATURE, 'ttp-float-btn', false));
-  else if (!showSpeedButton && speed) speed.remove();
-}
-
-function videoCardNear(bar) {
-  let el = bar.parentElement;
-  for (let depth = 0; el && el !== document.body && depth < 4; depth++, el = el.parentElement) {
-    const section = el.querySelector('section[data-e2e="feed-video"]');
-    if (section && !section.contains(bar)) return section;
-    const player = el.querySelector('[id^="xgwrapper-"]');
-    if (player && !player.contains(bar)) {
-      const target = player.getBoundingClientRect();
-      for (let box = player.parentElement; box && box !== el; box = box.parentElement) {
-        const r = box.getBoundingClientRect();
-        if (r.height >= target.height - 2 && r.width >= target.width - 2 && getComputedStyle(box).position !== 'static') return box;
-      }
-      return player.parentElement;
-    }
-  }
-  return null;
-}
-
 function injectButtons() {
   const { showSpeedButton } = cachedSettings();
 
@@ -281,13 +256,6 @@ function injectButtons() {
     if (!bar) return;
 
     const vertical = getComputedStyle(bar).flexDirection.startsWith('column');
-    if (vertical) {
-      const card = videoCardNear(bar);
-      if (card) injectFloatingTools(card, showSpeedButton);
-      else injectFloatingTools(bar, showSpeedButton, 'ttp-bar-tools');
-      return;
-    }
-
     const layout = vertical ? 'ttp-dl-btn--vertical' : 'ttp-dl-btn--inline';
     let download = bar.querySelector(':scope > .ttp-dl-btn');
 
@@ -299,8 +267,9 @@ function injectButtons() {
     }
 
     const speed = bar.querySelector(':scope > .ttp-speed-btn');
-    if (showSpeedButton && !speed) download.insertAdjacentElement('afterend', speedButton(FEATURE, layout, vertical));
-    else if (!showSpeedButton && speed) speed.remove();
+    const wantSpeed = showSpeedButton && !vertical;
+    if (wantSpeed && !speed) download.insertAdjacentElement('afterend', speedButton(FEATURE, layout, vertical));
+    else if (!wantSpeed && speed) speed.remove();
   });
 }
 

@@ -23,28 +23,31 @@ export async function setSpeed(rate) {
   applyAll();
 }
 
+export const currentSpeedLabel = () => label(cachedSettings().playbackRate || 1);
+
+export function openSpeedMenu(anchor, placement = 'bottom') {
+  const current = cachedSettings().playbackRate || 1;
+  openMenu(anchor, [
+    { type: 'header', label: t('SPEED') },
+    ...SPEEDS.map(rate => ({
+      icon: rate === current ? 'check' : null,
+      label: label(rate),
+      hint: rate === 1 ? t('SPEED_NORMAL') : null,
+      onSelect: () => setSpeed(rate)
+    }))
+  ], { placement, minWidth: 150 });
+}
+
 export function speedButton(feature, layout, vertical) {
-  const button = featureButton(feature, {
+  return featureButton(feature, {
     className: ['ttp-speed-btn', layout],
     iconName: 'speed',
     label: t('SPEED'),
-    text: label(cachedSettings().playbackRate || 1),
+    text: currentSpeedLabel(),
     size: vertical ? 20 : 18,
     stroke: 2.2,
-    onClick: (anchor) => {
-      const current = cachedSettings().playbackRate || 1;
-      openMenu(anchor, [
-        { type: 'header', label: t('SPEED') },
-        ...SPEEDS.map(rate => ({
-          icon: rate === current ? 'check' : null,
-          label: label(rate),
-          hint: rate === 1 ? t('SPEED_NORMAL') : null,
-          onSelect: () => setSpeed(rate)
-        }))
-      ], { placement: vertical ? 'top' : 'bottom', minWidth: 150 });
-    }
+    onClick: (anchor) => openSpeedMenu(anchor, vertical ? 'top' : 'bottom')
   });
-  return button;
 }
 
 export function initSpeed() {

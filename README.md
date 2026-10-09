@@ -11,7 +11,7 @@ Chrome extension (Manifest V3) that adds tools to TikTok. Everything runs locall
 ## Features
 
 ### Downloads
-- **Download and speed buttons** at the top right of the video (For You feed, opened post), without touching TikTok's bar; in the action bar on pages with a horizontal layout. The menu shows the date, time and duration, then offers:
+- **Download button** in the action bar, under "Share": a single compact button so TikTok's bar doesn't move up. The menu shows the date, time and duration, then offers:
   - **Video without watermark** in the best resolution (can be switched to H.264 if a player can't read H.265)
   - Photo posts: **Current photo** (the slide on screen, e.g. 3/8), **All photos**, or **Pick a photo…** (zoomable viewer opened on the current slide)
   - **Thumbnail**: the first frame loaded
@@ -26,7 +26,7 @@ Chrome extension (Manifest V3) that adds tools to TikTok. Everything runs locall
 On the post on screen: **D** download · **A** sound · **X** capture. Keys can be changed in the settings. **Alt+Shift+T** opens the panel.
 
 ### Playback
-- **Playback speed** (0.5× to 2×): button in the action bar, setting remembered.
+- **Playback speed** (0.5× to 2×): "Playback speed" entry in the download menu (plus a dedicated button on pages with a horizontal layout), setting remembered.
 - **Exact posting date and time** under the description, derived from the ID without any request.
 
 ### Ghost mode stories
