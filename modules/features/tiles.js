@@ -15,6 +15,26 @@ const TILE_LINKS = 'a[href*="/video/"], a[href*="/photo/"]';
 const LINK = /\/@([^/?#]+)\/(?:video|photo)\/(\d{8,})/;
 const BATCH_DELAY = 400;
 
+const boxes = new WeakMap();
+
+
+function mediaBox(link) {
+  const img = link.querySelector('img');
+  const imgRect = img?.getBoundingClientRect();
+  const linkRect = link.getBoundingClientRect();
+  if (!imgRect || imgRect.height < 40 || imgRect.width < 40) return null;
+
+  const width = Math.min(imgRect.right, linkRect.right) - Math.max(imgRect.left, linkRect.left);
+  const height = Math.min(imgRect.bottom, linkRect.bottom) - Math.max(imgRect.top, linkRect.top);
+  if (width < 40 || height < 40) return null;
+
+  for (let el = img.parentElement; el; el = el.parentElement) {
+    const rect = el.getBoundingClientRect();
+    if (rect.width >= width - 2 && rect.height >= height - 2 && getComputedStyle(el).display !== 'inline') return el;
+    if (el === link) break;
+  }
+  return link;
+}
 
 function findTiles() {
   const tiles = [];
@@ -22,12 +42,21 @@ function findTiles() {
     const match = link.getAttribute('href')?.match(LINK);
     if (!match || !link.querySelector('img')) continue;
     if (link.closest('article, [data-e2e="recommend-list-item-container"], .ttp-root, [data-e2e="browse-video"]')) continue;
-    const box = link.closest('[data-e2e="user-post-item"], [data-e2e$="-item"]') || link.parentElement;
+    const known = boxes.get(link);
+    const box = known?.isConnected && link.contains(known) && known.offsetHeight >= 40 ? known : mediaBox(link);
     if (!box) continue;
     tiles.push({ link, box, id: match[2], username: decodeURIComponent(match[1]) });
   }
   return tiles;
 }
+
+function releaseBox(box) {
+  box.querySelectorAll(':scope > .ttp-tile-btn, :scope > .ttp-tile-check').forEach(el => el.remove());
+  box.classList.remove('ttp-selected');
+  delete box.dataset.ttpTile;
+  delete box.dataset.ttpTileInfo;
+}
+
 
 function ensurePositioned(box) {
   if (getComputedStyle(box).position === 'static') box.style.position = 'relative';
@@ -191,16 +220,22 @@ function scan() {
   if (selection.active && route.type !== 'profile') stopSelection();
 
   for (const tile of findTiles()) {
-    const { box } = tile;
+    const { box, link } = tile;
     const info = JSON.stringify({ id: tile.id, username: tile.username });
+
+    const previous = boxes.get(link);
+    if (previous && previous !== box) releaseBox(previous);
+    boxes.set(link, box);
 
     if (box.dataset.ttpTileInfo !== info) {
       box.dataset.ttpTile = '';
       box.dataset.ttpTileInfo = info;
-      if (!box.dataset.ttpTileBound) {
-        box.dataset.ttpTileBound = '1';
-        box.addEventListener('click', onTileClick, true);
-      }
+    }
+
+    link.dataset.ttpTileInfo = info;
+    if (!link.dataset.ttpTileBound) {
+      link.dataset.ttpTileBound = '1';
+      link.addEventListener('click', onTileClick, true);
     }
 
     ensurePositioned(box);

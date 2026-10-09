@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "TikTok+",
-  "version": "1.2.5",
+  "version": "1.2.6",
   "description": "Outils TikTok : téléchargements (vidéos sans filigrane, photos, sons, stories, profils entiers), stories en mode fantôme, photos de profil HD, suivi des IDs et des abonnements.",
   "permissions": ["downloads", "declarativeNetRequestWithHostAccess", "storage", "unlimitedStorage", "scripting"],
   "host_permissions": [
