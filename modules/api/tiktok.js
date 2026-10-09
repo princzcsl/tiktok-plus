@@ -68,7 +68,7 @@ export async function fetchItem(id, username = '', { fresh = false } = {}) {
     const item = getItem(id);
     if (item && itemHasMedia(item)) return item;
   } catch (error) {
-    logger.warning('item/detail indisponible, repli sur la page HTML', error.message);
+    logger.warning('item/detail unavailable, falling back to the HTML page', error.message);
   }
 
   const scope = await fetchUniversalData(`/@${encodeURIComponent(username || 'tiktok')}/video/${id}`);
@@ -89,7 +89,7 @@ export async function fetchUser(username) {
     const user = getUserByName(username);
     if (user?.hasHD) return user;
   } catch (error) {
-    logger.warning('user/detail indisponible, repli sur la page HTML', error.message);
+    logger.warning('user/detail unavailable, falling back to the HTML page', error.message);
   }
 
   try {
@@ -160,7 +160,7 @@ export async function fetchStories(user) {
       if (found.size) break;
     } catch (error) {
       lastError = error;
-      logger.warning(`${path} indisponible`, error.message);
+      logger.warning(`${path} unavailable`, error.message);
     }
   }
 

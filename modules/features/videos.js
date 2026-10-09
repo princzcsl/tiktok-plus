@@ -216,7 +216,7 @@ export function itemMenuItems(item, { scope = null, withCapture = true, anchor =
 async function menuItems(anchor) {
   const target = resolveItem(anchor);
   if (!target) return [{ type: 'message', label: t('ITEM_NOT_FOUND'), error: true }];
-  logger.info('Publication', target.id, target.username);
+  logger.info('Post', target.id, target.username);
   return itemMenuItems(await fetchItem(target.id, target.username), { scope: target.scope, anchor });
 }
 

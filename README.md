@@ -1,71 +1,61 @@
 # TikTok+
 
-Chrome extension (Manifest V3) that adds tools to TikTok. Everything runs locally with your own TikTok session: no third-party website, no build step.
+A Chrome extension that adds a few things I was missing on TikTok: downloading videos without the watermark, watching stories without showing up in the viewers list, HD profile pictures, and keeping track of who I follow.
 
-## Installation
+It runs entirely in your browser with your own TikTok session. No server, no third-party site, no build step.
 
-1. Open `chrome://extensions` → enable **Developer mode**
-2. **Load unpacked** → select this folder
+## Install
+
+1. Open `chrome://extensions` and turn on Developer mode
+2. Click "Load unpacked" and pick this folder
 3. Reload your TikTok tabs
 
-## Features
+## What it does
 
-### Downloads
-- **Download button** in the action bar, under "Share": a single compact button so TikTok's bar doesn't move up. The menu shows the date, time and duration, then offers:
-  - **Video without watermark** in the best resolution (can be switched to H.264 if a player can't read H.265)
-  - Photo posts: **Current photo** (the slide on screen, e.g. 3/8), **All photos**, or **Pick a photo…** (zoomable viewer opened on the current slide)
-  - **Thumbnail**: the first frame loaded
-  - **Sound** as MP3
-  - **Capture the current frame**, in full resolution (PNG)
-- **Button on thumbnail hover** (profile, search…), opening the same menu.
-- **Selection on a profile**: **Select** button, then tick posts one by one or use **Select all**. Thumbnails loaded later while scrolling are ticked too. Videos and photo posts are supported, with a single folder choice for the whole batch.
-- **Automatic naming**: `username_id`, e.g. `username_7412345678901234567.mp4`. Photos `_01`, `_02`…; thumbnail `_miniature`; capture `_capture`.
-- **Location**: asked every time (last folder remembered), or saved directly to `Downloads/TikTok+/` depending on the settings.
+**Downloads.** A download button sits in the action bar under "Share". Its menu shows when the post was published and lets you grab the video without watermark (best quality by default, H.264 available in the settings), the photos of a carousel (the one on screen, all of them, or one you pick), the thumbnail, the sound as MP3, or a full-resolution capture of the current frame.
 
-### Keyboard shortcuts
-On the post on screen: **D** download · **A** sound · **X** capture. Keys can be changed in the settings. **Alt+Shift+T** opens the panel.
+Thumbnails on profiles and search pages get a small download button on hover. On a profile, "Select" lets you tick posts one by one or select everything and download it in one go.
 
-### Playback
-- **Playback speed** (0.5× to 2×): "Playback speed" entry in the download menu (plus a dedicated button on pages with a horizontal layout), setting remembered.
-- **Exact posting date and time** under the description, derived from the ID without any request.
+Files are named `username_id`, for example `username_7412345678901234567.mp4`. By default Chrome asks where to save them and remembers the last folder; you can switch to saving straight into `Downloads/TikTok+/`.
 
-### Ghost mode stories
-**Stories** button under a profile's username. Stories are read through the list API and shown in the TikTok+ player, without ever opening the native player: no view is sent. You can download a story, its thumbnail, or **all stories** at once.
+**Stories without being seen.** The "Stories" button on a profile opens the stories in TikTok+'s own player, so TikTok's player is never opened and no view is recorded. You can download one story or all of them. The regular story player also gets a download button next to "Share" (that one does count as a view).
 
-In TikTok's **regular story player**, a download button also appears to the left of "Share". It offers the story (video or photo), its thumbnail, the sound, a capture of the current frame, and all of the account's stories.
+**HD profile pictures.** Hover the center of a profile picture, or use the "HD picture" button, to open it in 1080×1080 with zoom.
 
-### HD profile picture
-Magnifier badge in the center of a profile's avatar, or **HD picture** button: 1080×1080 with zoom. The rest of the avatar keeps TikTok's normal click.
+**IDs.** Click the @ on a profile to copy the account's permanent ID or mark it. Marked accounts are found again even after they change their @, and you get a notification when that happens.
 
-### IDs
-Click the @ on a profile to copy its **permanent ID** or **mark** the account. A marked account is found again even if its @ changes (through its immutable secUid), and a notification appears when a change is detected. The panel offers a search by @, link or ID, and the list of marked accounts with their former @.
+**Following history.** The extension icon opens a panel listing the accounts you followed or unfollowed, deleted accounts and @ changes. It syncs automatically once a day while TikTok is open, or manually (once per hour at most).
 
-### Following tracking
-The panel (extension icon) lists the history of the accounts you follow: follows, unfollows, deleted accounts and @ changes.
-- **Automatic** sync every 24 h while a TikTok tab is open.
-- **Manual** sync, at most once per hour.
-- Badge on the icon when there is something new.
+**Small extras.** Exact posting date under each description, playback speed from 0.5× to 2×, and keyboard shortcuts: D to download, A for the sound, X to capture the frame (changeable in the settings). Alt+Shift+T opens the panel.
 
 ## How it works
 
-- **No request on page load.** `page-hook.js` (MAIN world) reads the responses TikTok already receives (`/api/...` and the `__UNIVERSAL_DATA_FOR_REHYDRATION__` JSON), including a profile's stories and posts.
-- **Requests signed by TikTok.** If some data is missing, the `/api/` request is sent from the page, and TikTok's own SDK adds its signatures (X-Bogus…).
-- **Downloads.** The file is fetched from the page, otherwise through the service worker (the CDN requires a `tiktok.com` Referer, added by a `declarativeNetRequest` rule limited to the extension). If a link has expired, the post is reloaded automatically.
-- **Careful sync.** Pages of 30 accounts spaced 1.5 to 3 s apart. An incomplete list is ignored so it doesn't create fake unfollows, and auto sync pauses for 2 h if TikTok rate-limits requests.
-- **Reinforced ghost mode.** `rules/ghost.json` blocks, as a precaution, TikTok requests whose path contains `story` and `view` / `seen` / `read` / `mark`.
+TikTok already loads everything it shows. `page-hook.js` runs in the page and reads those responses as they arrive, so most actions don't need any extra request. When something is missing, the request is sent from the page itself and TikTok's own code signs it.
 
-## Structure
+Video files come from TikTok's CDN, which expects a `tiktok.com` referer. A `declarativeNetRequest` rule adds it, only for requests made by the extension. If a link has expired, the post is fetched again.
+
+The following sync goes slowly on purpose (30 accounts per page, a pause between pages) and ignores incomplete lists so it never reports fake unfollows. `rules/ghost.json` also blocks story "seen" requests as an extra safety net.
 
 ```
-page-hook.js          MAIN world: reads TikTok's responses + signed request bridge
-content.js            classic loader -> import('modules/main.js')
-background.js         downloads (CDN Referer), badge, icon -> panel
-rules/ghost.json      blocks story view receipts
+page-hook.js      reads TikTok's responses, sends signed requests
+content.js        loads modules/main.js
+background.js     downloads, badge, extension icon
+rules/            story view blocking
+_locales/         extension name and description (en, fr)
 modules/
-  main.js             feature routing + DOM observer
-  core/               dom, i18n (fr/en), logger, router, runtime, storage (settings), theme
-  api/                normalize (TikTok structures), pageData (cache), tiktok (requests)
-  services/           downloads, save (location), ids (marked accounts), sync (following)
-  ui/                 icons, toast, menu, overlay, imageViewer, storyViewer, avatar, panel
-  features/           videos, tiles (hover + selection), profile, speed, shortcuts
+  core/           dom helpers, i18n, router, storage, theme
+  api/            TikTok data and requests
+  services/       downloads, saving, IDs, following sync
+  ui/             menus, toasts, viewers, panel
+  features/       buttons added to TikTok's pages
 ```
+
+The interface is available in English and French, depending on your browser language.
+
+## Disclaimer
+
+TikTok+ is an independent project, not affiliated with or endorsed by TikTok or ByteDance. Use it in line with TikTok's Terms of Service and respect creators: only download what you're allowed to keep.
+
+## License
+
+[MIT](LICENSE)

@@ -11,7 +11,7 @@ export async function runDownload(task, { thumbnail = false } = {}) {
     toast.download(saved ? t('DL_SAVED_AT', { where: saved }) : t(thumbnail ? 'DL_THUMB_STARTED' : 'DL_STARTED'));
   } catch (error) {
     if (isCancel(error)) return;
-    logger.error('Téléchargement', error);
+    logger.error('Download', error);
     toast.error(error);
   }
 }
@@ -43,7 +43,7 @@ export async function runBatch(loadItems) {
     } catch (error) {
       failed++;
       firstError ??= error;
-      logger.warning(`Téléchargement ${item.id} impossible : ${error?.message || error}`, error);
+      logger.warning(`Download of ${item.id} failed: ${error?.message || error}`, error);
     }
     progress.update(t('DL_PROGRESS', { done: index + 1, total: items.length }), (index + 1) / items.length);
   }
@@ -69,7 +69,7 @@ export async function runDownloadPhotos(item) {
     else toast.success(message);
   } catch (error) {
     if (isCancel(error)) return progress?.fail(t('CANCELLED'));
-    logger.error('Téléchargement photos', error);
+    logger.error('Photo download', error);
     if (progress) progress.fail(error);
     else toast.error(error);
   }

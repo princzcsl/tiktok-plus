@@ -14,7 +14,7 @@ function guessExt(urls, fallback) {
   try {
     const match = new URL(urls[0]).pathname.match(/\.(mp4|mp3|m4a|jpe?g|png|webp|gif|avif)(?:$|[~?])/i);
     if (match) return match[1].toLowerCase().replace('jpeg', 'jpg');
-  } catch {  }
+  } catch {}
   return fallback;
 }
 

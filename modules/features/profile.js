@@ -144,7 +144,7 @@ function injectActions() {
   } else {
     title.insertAdjacentElement('afterend', actions);
   }
-  logger.success('[profile] Boutons injectés');
+  logger.success('[profile] Buttons injected');
 }
 
 export const profileFeature = {

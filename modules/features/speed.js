@@ -1,11 +1,12 @@
 import { getSettings, updateSettings, cachedSettings, store } from '../core/storage.js';
-import { t } from '../core/i18n.js';
+import { t, LANG } from '../core/i18n.js';
 import { openMenu } from '../ui/menu.js';
 import { featureButton } from './common.js';
 
 export const SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2];
 
-const label = (rate) => `${String(rate).replace('.', ',')}×`;
+export const speedLabel = (rate) => `${LANG === 'fr' ? String(rate).replace('.', ',') : String(rate)}×`;
+const label = speedLabel;
 
 function applyTo(video) {
   const rate = cachedSettings().playbackRate || 1;

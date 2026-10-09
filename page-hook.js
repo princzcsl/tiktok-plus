@@ -106,7 +106,7 @@
     if (!/"(uniqueId|playAddr|imagePost)"/.test(text)) return;
     try {
       collect(JSON.parse(text), { story: STORY_URL.test(pathOf(url)) });
-    } catch {  }
+    } catch {}
   }
 
   function pathOf(url) {
@@ -124,9 +124,9 @@
       commonParams = params;
 
       if (STORY_URL.test(parsed.pathname) && !/item_list/.test(parsed.pathname)) {
-        console.debug('[TikTok+] requête story :', parsed.pathname);
+        console.debug('[TikTok+] story request:', parsed.pathname);
       }
-    } catch {  }
+    } catch {}
   }
 
   const originalFetch = window.fetch;
@@ -138,7 +138,7 @@
       if (RELEVANT_URL.test(url)) {
         promise.then(response => response.clone().text()).then(text => scanText(text, url)).catch(() => {});
       }
-    } catch {  }
+    } catch {}
     return promise;
   };
 
@@ -156,7 +156,7 @@
         try {
           if (this.responseType === '' || this.responseType === 'text') scanText(this.responseText, this.__ttpUrl);
           else if (this.responseType === 'json' && this.response) collect(this.response, { story: STORY_URL.test(pathOf(this.__ttpUrl)) });
-        } catch {  }
+        } catch {}
       });
     }
     return originalSend.apply(this, args);
@@ -227,7 +227,7 @@
       if (me?.uid && me?.secUid) {
         window.postMessage({ source: SOURCE, viewer: { id: String(me.uid), secUid: me.secUid, username: me.uniqueId || '' } }, location.origin);
       }
-    } catch {  }
+    } catch {}
   };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', scanEmbedded, { once: true });
   else scanEmbedded();

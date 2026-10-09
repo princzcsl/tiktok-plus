@@ -201,7 +201,7 @@ async function downloadSelection() {
     } catch (error) {
       failed++;
       firstError ??= error;
-      logger.warning(`Téléchargement ${target.id} (@${target.username}) impossible : ${error?.message || error}`, error);
+      logger.warning(`Download of ${target.id} (@${target.username}) failed: ${error?.message || error}`, error);
     }
     progress.update(t('DL_PROGRESS', { done: index + 1, total: targets.length }), (index + 1) / targets.length);
     if (index < targets.length - 1) await sleep(BATCH_DELAY);

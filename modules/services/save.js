@@ -15,7 +15,7 @@ async function fetchFrom(urls) {
       if (!response.ok) continue;
       const blob = await response.blob();
       if (isMedia(blob)) return blob;
-    } catch {  }
+    } catch {}
   }
 
   const { dataUrl } = await sendBackground({ action: 'fetchDataUrl', urls });

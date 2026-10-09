@@ -69,7 +69,7 @@ export async function markEventsSeen(vid) {
 export async function updateBadge(vid) {
   try {
     await sendBackground({ action: 'setBadge', count: await getUnseenCount(vid) });
-  } catch {  }
+  } catch {}
 }
 
 export async function findSecUid(id) {
@@ -147,7 +147,7 @@ async function verifyLost(events) {
   for (const event of events.filter(e => e.type === 'unfollowed' && e.s).slice(0, VERIFY_LOST_MAX)) {
     try {
       if (!(await fetchUserBySecUid(event.s))) event.type = 'gone';
-    } catch {  }
+    } catch {}
     await sleep(800);
   }
 }
@@ -243,10 +243,10 @@ async function doSync({ manual, silent }) {
     if (progress) progress.done(summary);
     else if (added || removed || renamed) toast.success(`TikTok+ · ${summary}`, { duration: 6000 });
 
-    logger.success('Synchronisation terminée', { count: users.length, events: events.length });
+    logger.success('Sync complete', { count: users.length, events: events.length });
     return { events, count: users.length };
   } catch (error) {
-    logger.error('Synchronisation', error);
+    logger.error('Sync', error);
     if (error.code === 'rate_limited') await store.set(COOLDOWN_KEY, Date.now() + RATE_LIMIT_COOLDOWN);
     progress?.fail(syncErrorMessage(error));
     throw error;
@@ -267,10 +267,10 @@ export function startSyncScheduler() {
       const meta = await getSyncMeta(viewer.id);
       if (meta && Date.now() - meta.at < AUTO_SYNC_INTERVAL) return;
 
-      logger.info('Synchronisation automatique des abonnements');
+      logger.info('Automatic following sync');
       await runSync({ manual: false, silent: true });
     } catch (error) {
-      if (error.code !== 'sync_busy') logger.warning('Synchro auto en échec', error);
+      if (error.code !== 'sync_busy') logger.warning('Automatic sync failed', error);
     }
   };
 

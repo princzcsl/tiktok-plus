@@ -131,7 +131,7 @@ export function openMenu(anchor, itemsOrLoader, { onClose, minWidth = 210, place
           state.pending = Promise.resolve()
             .then(() => item.onSelect?.())
             .catch((error) => {
-              logger.error('Action menu', error);
+              logger.error('Menu action', error);
               toast.error(error);
             });
           close();
@@ -154,7 +154,7 @@ export function openMenu(anchor, itemsOrLoader, { onClose, minWidth = 210, place
       .then(itemsOrLoader)
       .then(items => !state.closed && render(items))
       .catch(error => {
-        logger.error('Chargement menu', error);
+        logger.error('Menu loading', error);
         if (!state.closed) render([{ type: 'message', label: errorMessage(error), error: true }]);
       });
   } else {

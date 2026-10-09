@@ -14,5 +14,5 @@
 
   import(chrome.runtime.getURL('modules/main.js'))
     .then(({ start }) => start())
-    .catch(error => console.error('❌ [TikTok+] Chargement impossible :', error));
+    .catch(error => console.error('❌ [TikTok+] Unable to load:', error));
 })();

@@ -10,5 +10,5 @@ export const logger = {
   success: write('log', '✅'),
   warning: write('warn', '⚠️'),
   error: write('error', '❌'),
-  pageChange: (from, to) => DEBUG && console.log(`🧭 ${PREFIX} Page : ${from ?? '∅'} → ${to}`)
+  pageChange: (from, to) => DEBUG && console.log(`🧭 ${PREFIX} Page: ${from ?? '∅'} → ${to}`)
 };

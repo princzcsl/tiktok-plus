@@ -10,7 +10,7 @@ import { getMarks, onMarksChange, lookup, mark, unmark, refreshMarks, isMarked }
 import { icon } from './icons.js';
 import { openOverlay } from './overlay.js';
 import { toast } from './toast.js';
-import { SPEEDS } from '../features/speed.js';
+import { SPEEDS, speedLabel } from '../features/speed.js';
 
 const TABS = [
   { id: 'following', label: 'PANEL_FOLLOWING', icon: 'users' },
@@ -347,7 +347,7 @@ async function renderSettings(body) {
     field(t('SET_HOVER'), null, toggle(settings.hoverButton, v => save({ hoverButton: v }))),
 
     h('div', { class: 'ttp-section-title' }, t('SET_PLAYBACK')),
-    field(t('SET_SPEED'), null, select(settings.playbackRate, SPEEDS.map(rate => [rate, `${String(rate).replace('.', ',')}×`]), v => save({ playbackRate: Number(v) }))),
+    field(t('SET_SPEED'), null, select(settings.playbackRate, SPEEDS.map(rate => [rate, speedLabel(rate)]), v => save({ playbackRate: Number(v) }))),
     field(t('SET_SPEED_BUTTON'), null, toggle(settings.showSpeedButton, v => save({ showSpeedButton: v }))),
     field(t('SET_DATE'), t('SET_DATE_HELP'), toggle(settings.showDate, v => save({ showDate: v }))),
 

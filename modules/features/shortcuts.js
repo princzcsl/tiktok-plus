@@ -36,7 +36,7 @@ function onKey(e) {
   e.preventDefault();
   e.stopPropagation();
   run(action).catch(error => {
-    logger.error('Raccourci', error);
+    logger.error('Shortcut', error);
     toast.error(error);
   });
 }

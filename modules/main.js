@@ -84,7 +84,7 @@ function shutdown() {
   observer?.disconnect();
   observer = null;
   document.querySelectorAll('[data-ttp-feature], .ttp-root').forEach(el => el.remove());
-  logger.warning('Contexte d\'extension invalidé, instance désactivée');
+  logger.warning('Extension context invalidated, instance disabled');
 }
 
 function boot() {
@@ -109,7 +109,7 @@ function boot() {
 
   startSyncScheduler();
   watchMarkedRenames();
-  logger.success('Extension chargée');
+  logger.success('Extension loaded');
 }
 
 function watchMarkedRenames() {

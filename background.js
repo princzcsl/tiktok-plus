@@ -5,7 +5,7 @@ function log(emoji, message, ...args) {
   console.log(`${emoji} ${message}`, ...args);
 }
 
-log('🟢', 'Background script chargé');
+log('🟢', 'Background script loaded');
 
 
 const CDN_DOMAINS = [
@@ -36,7 +36,7 @@ function ensureRules() {
     }]
   }).catch(error => {
     rulesReady = null;
-    log('❌', 'Règle Referer impossible :', error);
+    log('❌', 'Unable to set the Referer rule:', error);
   });
   return rulesReady;
 }
@@ -79,7 +79,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   handler(request, sender)
     .then(result => sendResponse(result ?? {}))
     .catch(error => {
-      log('❌', `Erreur ${request.action}:`, error);
+      log('❌', `${request.action} error:`, error);
       sendResponse({ error: error.message || String(error) });
     });
 
@@ -127,7 +127,7 @@ async function fetchFirst(urls) {
       if (blob.size < 512 || /text\/html|json/i.test(blob.type)) continue;
       return { blob, url };
     } catch (error) {
-      log('⚠️', 'Échec, URL suivante:', error.message);
+      log('⚠️', 'Failed, trying next URL:', error.message);
     }
   }
   throw new Error('no_url');
@@ -137,7 +137,7 @@ async function download(urls, filename, fallbackExt, saveAs = false) {
   try {
     const { blob, url } = await fetchFirst(urls);
     const ext = extensionOf(blob, url, fallbackExt);
-    log('⬇️', 'Téléchargement:', `${filename}.${ext}`, `${(blob.size / 1048576).toFixed(1)} Mo`);
+    log('⬇️', 'Download:', `${filename}.${ext}`, `${(blob.size / 1048576).toFixed(1)} MB`);
     const downloadId = await chrome.downloads.download({
       url: await blobToDataUrl(blob),
       filename: `${filename}.${ext}`,
@@ -149,7 +149,7 @@ async function download(urls, filename, fallbackExt, saveAs = false) {
     if (error.message !== 'no_url' || !urls.length) throw error;
   }
 
-  log('🔁', 'Repli chrome.downloads direct');
+  log('🔁', 'Falling back to a direct chrome.downloads download');
   const downloadId = await chrome.downloads.download({
     url: urls[0],
     filename: `${filename}.${fallbackExt || 'mp4'}`,
@@ -181,7 +181,7 @@ async function openPanelIn(tab, panelTab = 'following') {
   try {
     await chrome.tabs.sendMessage(tab.id, message);
   } catch {
-    log('🔁', 'Content script absent, réinjection');
+    log('🔁', 'Content script missing, injecting it again');
     await chrome.scripting.insertCSS({ target: { tabId: tab.id }, files: ['styles.css'] });
     await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ['content.js'] });
     setTimeout(() => chrome.tabs.sendMessage(tab.id, message).catch(() => {}), 800);

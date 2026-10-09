@@ -98,7 +98,7 @@ export async function refreshMarks(onProgress = () => {}) {
         if (record.username !== before) renamed.push({ from: before, to: record.username });
       }
     } catch (error) {
-      logger.warning(`Vérification ID ${id} impossible`, error);
+      logger.warning(`Unable to check ID ${id}`, error);
     }
     onProgress(index + 1, ids.length);
     if (index < ids.length - 1) await sleep(700);
