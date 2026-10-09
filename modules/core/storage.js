@@ -8,7 +8,11 @@ export const DEFAULT_SETTINGS = {
   hoverButton: true,
   shortcuts: true,
   keys: { download: 'd', audio: 'a', capture: 'x' },
-  autoSync: true
+  syncLists: 'both',
+  syncInterval: '24h',
+  syncPace: 'slow',
+  syncNotify: true,
+  showBadge: true
 };
 
 export const store = {
@@ -34,11 +38,21 @@ export const store = {
   }
 };
 
-const merge = (value) => ({
-  ...DEFAULT_SETTINGS,
-  ...(value || {}),
-  keys: { ...DEFAULT_SETTINGS.keys, ...(value?.keys || {}) }
-});
+function migrate(value) {
+  if (!value || value.syncInterval || value.autoSync === undefined) return value;
+  const { autoSync, ...rest } = value;
+  return { ...rest, syncInterval: autoSync ? '24h' : 'off' };
+}
+
+const merge = (raw) => {
+  const value = migrate(raw);
+  const { autoSync: _legacy, ...settings } = {
+    ...DEFAULT_SETTINGS,
+    ...(value || {}),
+    keys: { ...DEFAULT_SETTINGS.keys, ...(value?.keys || {}) }
+  };
+  return settings;
+};
 
 let settingsCache = null;
 

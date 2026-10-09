@@ -1,11 +1,13 @@
 import { h, clear, copyText } from '../core/dom.js';
 import { t, timeAgo, formatDate, errorMessage } from '../core/i18n.js';
-import { getSettings, updateSettings, DEFAULT_SETTINGS } from '../core/storage.js';
+import { getSettings, updateSettings, cachedSettings, DEFAULT_SETTINGS } from '../core/storage.js';
 import { getViewer } from '../api/tiktok.js';
 import {
-  getSyncMeta, getEvents, markEventsSeen, startManualSync, manualSyncAvailableAt, onSyncProgress,
-  isSyncRunning, findSecUid, AUTO_SYNC_INTERVAL
+  getSyncMeta, getEvents, getSnapshot, markEventsSeen, startManualSync, manualSyncAvailableAt, onSyncProgress,
+  isSyncRunning, findSecUid, listsFromSetting, nextAutoSyncAt, relationsOf, clearTrackingData, updateBadge, SYNC_INTERVALS
 } from '../services/sync.js';
+import { isPickerSupported, saveBlobWithPicker } from '../services/save.js';
+import { runDownload } from './actions.js';
 import { getMarks, onMarksChange, lookup, mark, unmark, refreshMarks, isMarked } from '../services/ids.js';
 import { icon } from './icons.js';
 import { openOverlay } from './overlay.js';
@@ -68,18 +70,41 @@ export function openPanel({ tab = 'following' } = {}) {
 
 
 const EVENT_LABELS = {
-  followed: { label: 'EVT_FOLLOWED', className: 'ttp-chip--green' },
-  unfollowed: { label: 'EVT_UNFOLLOWED', className: 'ttp-chip--red' },
+  follow: { label: 'EVT_FOLLOW', className: 'ttp-chip--green' },
+  unfollow: { label: 'EVT_UNFOLLOW', className: 'ttp-chip--red' },
+  followed: { label: 'EVT_FOLLOWED', className: 'ttp-chip--cyan' },
+  unfollowed: { label: 'EVT_UNFOLLOWED', className: 'ttp-chip--orange' },
   gone: { label: 'EVT_GONE', className: 'ttp-chip--muted' },
   rename: { label: 'EVT_RENAME', className: 'ttp-chip--purple' }
 };
 
 const FILTERS = [
   { id: 'all', label: 'FILTER_ALL', types: null },
-  { id: 'added', label: 'FILTER_ADDED', types: ['followed'] },
-  { id: 'removed', label: 'FILTER_REMOVED', types: ['unfollowed', 'gone'] },
+  { id: 'follow', label: 'FILTER_NEW_FOLLOWERS', types: ['follow'] },
+  { id: 'unfollow', label: 'FILTER_LOST_FOLLOWERS', types: ['unfollow'] },
+  { id: 'followed', label: 'FILTER_FOLLOWED', types: ['followed'] },
+  { id: 'unfollowed', label: 'FILTER_UNFOLLOWED', types: ['unfollowed'] },
+  { id: 'gone', label: 'FILTER_GONE', types: ['gone'] },
   { id: 'renamed', label: 'FILTER_RENAMED', types: ['rename'] }
 ];
+
+const listLabel = (listType) => t(listType === 'followers' ? 'LIST_FOLLOWERS' : 'LIST_FOLLOWING');
+const timeOf = (at) => new Date(at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+async function exportCsv(users, name) {
+  const rows = [['id', 'username', 'nickname', 'profile'], ...users.map(u => [u.id, u.username, u.nickname, `https://www.tiktok.com/@${u.username}`])];
+  const csv = `﻿${rows.map(row => row.map(value => `"${String(value ?? '').replace(/"/g, '""')}"`).join(',')).join('\r\n')}`;
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+  const filename = `${name}_${new Date().toISOString().slice(0, 10)}.csv`;
+  if (cachedSettings().saveMode !== 'downloads' && isPickerSupported()) return saveBlobWithPicker(async () => blob, filename);
+  const url = URL.createObjectURL(blob);
+  const link = h('a', { href: url, download: filename, style: 'display:none' });
+  document.body.append(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 10000);
+  return filename;
+}
 
 const profileLink = (username, ...children) => h('a', { class: 'ttp-user-link', href: `https://www.tiktok.com/@${encodeURIComponent(username)}` }, ...children);
 
@@ -87,12 +112,22 @@ function avatar(src) {
   return h('span', { class: 'ttp-avatar' }, src ? h('img', { src, alt: '', loading: 'lazy', referrerpolicy: 'no-referrer' }) : null);
 }
 
+function userRow(user) {
+  return h('div', { class: 'ttp-event' },
+    avatar(user.avatarThumb),
+    h('div', { class: 'ttp-event-text' },
+      profileLink(user.username, h('strong', {}, `@${user.username}`)),
+      user.nickname ? h('span', { class: 'ttp-muted' }, user.nickname) : null
+    )
+  );
+}
+
 function eventRow(event) {
   if (event.type === 'baseline') {
     return h('div', { class: 'ttp-event ttp-event--baseline' },
       icon('flag', { size: 16 }),
-      h('span', {}, t('EVT_BASELINE', { n: event.count })),
-      h('span', { class: 'ttp-event-time' }, new Date(event.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }))
+      h('span', {}, t(event.list === 'followers' ? 'EVT_BASELINE_FOLLOWERS' : 'EVT_BASELINE', { n: event.count })),
+      h('span', { class: 'ttp-event-time' }, timeOf(event.at))
     );
   }
   const def = EVENT_LABELS[event.type];
@@ -103,7 +138,7 @@ function eventRow(event) {
       event.type === 'rename' ? h('span', { class: 'ttp-muted' }, t('EVT_RENAME_DETAIL', { from: event.from, to: event.to })) : (event.n ? h('span', { class: 'ttp-muted' }, event.n) : null)
     ),
     h('span', { class: ['ttp-chip', def?.className] }, t(def?.label || 'EVT_UNKNOWN')),
-    h('span', { class: 'ttp-event-time' }, new Date(event.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }))
+    h('span', { class: 'ttp-event-time' }, timeOf(event.at))
   );
 }
 
@@ -124,38 +159,89 @@ async function renderFollowing(body, cleanups) {
   }
 
   const summary = h('div', { class: 'ttp-card' });
+  const relations = h('div', { class: 'ttp-relations' });
   const filters = h('div', { class: 'ttp-chips' });
   const list = h('div', { class: 'ttp-events' });
   let filter = 'all';
   let events = [];
+  let openRelation = null;
+
+  function listLine(listType, meta, availableAt, settings) {
+    const last = meta?.[`${listType}At`];
+    const total = meta?.[listType === 'followers' ? 'followerCount' : 'followingCount'];
+    const next = nextAutoSyncAt(meta, listType, SYNC_INTERVALS[settings.syncInterval]);
+    const details = [
+      last ? t('SYNC_LIST_DONE', { n: total ?? 0, ago: timeAgo(last / 1000) }) : t('SYNC_NEVER'),
+      availableAt ? t('SYNC_NEXT_MANUAL', { time: timeOf(availableAt) }) : null,
+      next ? t('SYNC_NEXT_AUTO', { date: next <= Date.now() ? t('SYNC_SOON') : formatDate(next / 1000) }) : t('SYNC_AUTO_OFF')
+    ].filter(Boolean).join(' · ');
+    return h('div', { class: 'ttp-sync-line' }, h('strong', {}, listLabel(listType)), h('span', { class: 'ttp-muted' }, details));
+  }
 
   async function renderSummary() {
-    const [meta, availableAt] = await Promise.all([getSyncMeta(viewer.id), manualSyncAvailableAt(viewer.id)]);
+    const settings = await getSettings();
+    const enabled = listsFromSetting(settings.syncLists);
+    const meta = await getSyncMeta(viewer.id);
+    const waits = await Promise.all(enabled.map(listType => manualSyncAvailableAt(viewer.id, listType)));
     const running = isSyncRunning();
     const button = h('button', {
       class: 'ttp-button ttp-primary',
       type: 'button',
-      disabled: running || Boolean(availableAt),
-      on: { click: async () => { await startManualSync(); refresh(); } }
+      disabled: running || waits.every(Boolean),
+      on: { click: async () => { await startManualSync(enabled); refresh(); } }
     }, icon('sync', { size: 16, className: running ? 'ttp-spin' : '' }), t(running ? 'SYNC_RUNNING' : 'SYNC_NOW'));
 
     clear(summary,
       h('div', { class: 'ttp-card-main' },
-        h('div', {},
-          h('div', { class: 'ttp-card-title' }, `@${viewer.username || meta?.username || ''}`),
-          h('div', { class: 'ttp-muted' }, meta
-            ? t('SYNC_SUMMARY', { n: meta.count, ago: timeAgo(meta.at / 1000) })
-            : t('SYNC_NEVER'))
-        ),
+        h('div', { class: 'ttp-card-title' }, `@${viewer.username || meta?.username || ''}`),
         button
       ),
-      h('div', { class: 'ttp-help ttp-muted' },
-        availableAt ? t('SYNC_NEXT_MANUAL', { time: new Date(availableAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }) : null,
-        availableAt ? ' · ' : null,
-        (await getSettings()).autoSync
-          ? (meta ? t('SYNC_NEXT_AUTO', { date: formatDate((meta.at + AUTO_SYNC_INTERVAL) / 1000) }) : t('SYNC_AUTO_SOON'))
-          : t('SYNC_AUTO_OFF')
-      )
+      h('div', { class: 'ttp-sync-lines' }, enabled.map((listType, i) => listLine(listType, meta, waits[i], settings))),
+      h('div', { class: 'ttp-progress-line ttp-muted' })
+    );
+  }
+
+  async function renderRelations() {
+    const snapshot = await getSnapshot(viewer.id);
+    const lists = [
+      snapshot?.followerList ? { id: 'followers', users: snapshot.followerList } : null,
+      snapshot?.followingList ? { id: 'following', users: snapshot.followingList } : null
+    ].filter(Boolean);
+    if (!lists.length) {
+      clear(relations);
+      return;
+    }
+
+    const rel = relationsOf(snapshot);
+    const groups = [
+      rel ? { id: 'notFollowingBack', label: t('REL_NOT_FOLLOWING_BACK'), help: t('REL_NOT_FOLLOWING_BACK_HELP'), users: rel.notFollowingBack } : null,
+      rel ? { id: 'fans', label: t('REL_FANS'), help: t('REL_FANS_HELP'), users: rel.fans } : null
+    ].filter(Boolean);
+    const shown = groups.find(group => group.id === openRelation);
+
+    clear(relations,
+      h('div', { class: 'ttp-section-title' }, t('RELATIONS')),
+      rel ? null : h('p', { class: 'ttp-help ttp-muted' }, t('REL_NEED_BOTH')),
+      h('div', { class: 'ttp-chips' },
+        groups.map(group => h('button', {
+          class: ['ttp-chip-btn', openRelation === group.id && 'ttp-on'],
+          type: 'button',
+          title: group.help,
+          on: { click: () => { openRelation = openRelation === group.id ? null : group.id; renderRelations(); } }
+        }, group.label, h('span', { class: 'ttp-muted' }, String(group.users.length)))),
+        lists.map(entry => h('button', {
+          class: 'ttp-chip-btn',
+          type: 'button',
+          on: { click: () => runDownload(() => exportCsv(entry.users, `tiktok_${entry.id}`)) }
+        }, icon('download', { size: 14 }), t('EXPORT_CSV', { list: listLabel(entry.id).toLowerCase() })))
+      ),
+      shown ? h('div', { class: 'ttp-events ttp-relation-list' },
+        h('div', { class: 'ttp-row ttp-space ttp-help ttp-muted' },
+          h('span', {}, shown.help),
+          shown.users.length ? h('button', { class: 'ttp-chip-btn', type: 'button', on: { click: () => runDownload(() => exportCsv(shown.users, `tiktok_${shown.id}`)) } }, icon('download', { size: 14 }), 'CSV') : null
+        ),
+        shown.users.length ? shown.users.slice(0, 500).map(userRow) : h('div', { class: 'ttp-empty' }, t('REL_EMPTY'))
+      ) : null
     );
   }
 
@@ -185,18 +271,20 @@ async function renderFollowing(body, cleanups) {
   async function refresh() {
     events = await getEvents(viewer.id);
     await renderSummary();
+    await renderRelations();
     renderList();
   }
 
-  clear(body, summary, h('div', { class: 'ttp-section-title' }, t('HISTORY')), filters, list);
+  clear(body, summary, relations, h('div', { class: 'ttp-section-title' }, t('HISTORY')), filters, list);
   await refresh();
   await markEventsSeen(viewer.id);
   cleanups.push(onSyncProgress((state) => {
-    if (!state) refresh();
-    else {
-      const label = summary.querySelector('.ttp-muted');
-      if (label) label.textContent = t('SYNC_PROGRESS', { count: state.count, expected: state.expected ?? '?' });
+    if (!state) {
+      refresh();
+      return;
     }
+    const line = summary.querySelector('.ttp-progress-line');
+    if (line) line.textContent = t('SYNC_PROGRESS', { list: listLabel(state.listType), count: state.count, expected: state.expected ?? '?' });
   }));
 }
 
@@ -357,7 +445,27 @@ async function renderSettings(body) {
     field(t('KEY_AUDIO'), null, keyInput(settings.keys.audio || DEFAULT_SETTINGS.keys.audio, saveKey('audio'))),
     field(t('KEY_CAPTURE'), null, keyInput(settings.keys.capture || DEFAULT_SETTINGS.keys.capture, saveKey('capture'))),
 
-    h('div', { class: 'ttp-section-title' }, t('PANEL_FOLLOWING')),
-    field(t('SET_AUTO_SYNC'), t('SET_AUTO_SYNC_HELP'), toggle(settings.autoSync, v => save({ autoSync: v })))
+    h('div', { class: 'ttp-section-title' }, t('SET_TRACKING')),
+    field(t('SET_SYNC_LISTS'), null, select(settings.syncLists, [['both', t('SET_SYNC_BOTH')], ['followers', t('LIST_FOLLOWERS')], ['following', t('LIST_FOLLOWING')]], v => save({ syncLists: v }))),
+    field(t('SET_SYNC_INTERVAL'), t('SET_SYNC_INTERVAL_HELP'), select(settings.syncInterval, [['24h', t('SET_EVERY_24H')], ['12h', t('SET_EVERY_12H')], ['off', t('SET_SYNC_OFF')]], v => save({ syncInterval: v }))),
+    field(t('SET_SYNC_PACE'), t('SET_SYNC_PACE_HELP'), select(settings.syncPace, [['slow', t('SET_PACE_SLOW')], ['normal', t('SET_PACE_NORMAL')]], v => save({ syncPace: v }))),
+    field(t('SET_SYNC_NOTIFY'), t('SET_SYNC_NOTIFY_HELP'), toggle(settings.syncNotify, v => save({ syncNotify: v }))),
+    field(t('SET_BADGE'), null, toggle(settings.showBadge, async v => {
+      await save({ showBadge: v });
+      const viewer = await getViewer().catch(() => null);
+      if (viewer) updateBadge(viewer.id);
+    })),
+    field(t('SET_CLEAR_TRACKING'), t('SET_CLEAR_TRACKING_HELP'), h('button', {
+      class: 'ttp-button',
+      type: 'button',
+      on: {
+        click: async () => {
+          const viewer = await getViewer().catch(() => null);
+          if (!viewer || !confirm(t('SET_CLEAR_TRACKING_CONFIRM'))) return;
+          await clearTrackingData(viewer.id);
+          toast.success(t('SET_CLEAR_TRACKING_DONE'));
+        }
+      }
+    }, icon('trash', { size: 16 }), t('CLEAR')))
   );
 }

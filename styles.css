@@ -1197,3 +1197,29 @@ html:not(.ttp-selecting) [data-ttp-tile]::before { display: none; }
   .ttp-tab { font-size: 12px; }
   .ttp-select-bar { left: 8px; right: 8px; transform: none; }
 }
+
+.ttp-chip--cyan { color: #25f4ee; background: rgba(37, 244, 238, 0.12); }
+.ttp-chip--orange { color: #ffb340; background: rgba(255, 179, 64, 0.13); }
+
+.ttp-sync-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 12px;
+}
+
+.ttp-sync-line {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  font-size: 13px;
+}
+
+.ttp-sync-line strong { min-width: 96px; font-weight: 650; }
+
+.ttp-progress-line { margin-top: 8px; font-size: 12.5px; }
+.ttp-progress-line:empty { display: none; }
+
+.ttp-relations .ttp-chips { margin-bottom: 4px; }
+.ttp-relation-list { margin-top: 6px; padding: 4px 0; border-top: 1px solid var(--ttp-hairline); }
+.ttp-relation-list > .ttp-row { padding: 6px 6px 2px; }

@@ -131,8 +131,12 @@ export async function getViewer() {
   return viewerCache;
 }
 
-export async function fetchFollowingPage(secUid, minCursor = 0, count = 30) {
-  const data = await pageRequest('/api/user/list/', { secUid, count, maxCursor: 0, minCursor, scene: 21 });
+const LIST_SCENES = { following: 21, followers: 67 };
+
+export async function fetchUserListPage(secUid, listType, minCursor = 0, count = 30) {
+  const scene = LIST_SCENES[listType];
+  if (!scene) throw new Error('invalid_list');
+  const data = await pageRequest('/api/user/list/', { secUid, count, maxCursor: 0, minCursor, scene });
   if (data?.statusCode && data.statusCode !== 0) throw new Error(`api_${data.statusCode}`);
   const users = (data?.userList || []).map(entry => entry.user).filter(u => u?.id && u.uniqueId).map(normalizeUser);
   return { users, hasMore: Boolean(data?.hasMore), cursor: data?.minCursor ?? 0, total: data?.total ?? null };
