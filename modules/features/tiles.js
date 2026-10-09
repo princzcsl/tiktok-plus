@@ -135,6 +135,7 @@ export function stopSelection() {
   selection.bar?.remove();
   selection.bar = null;
   document.documentElement.classList.remove('ttp-selecting');
+  document.querySelectorAll('.ttp-tile-check').forEach(el => el.remove());
   renderSelection();
 }
 

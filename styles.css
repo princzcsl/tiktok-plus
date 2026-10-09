@@ -750,6 +750,9 @@ html[data-ttp-theme="dark"] .ttp-dl-btn--vertical .ttp-btn-icon {
   transition: background 0.12s ease, color 0.12s ease;
 }
 
+html:not(.ttp-selecting) .ttp-tile-check { display: none; }
+html:not(.ttp-selecting) .ttp-selected::after { display: none; }
+
 .ttp-selecting [data-ttp-tile] { cursor: pointer; }
 .ttp-selected > .ttp-tile-check { color: #fff; background: var(--ttp-pink); border-color: var(--ttp-pink); }
 .ttp-selected::after {
