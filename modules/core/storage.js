@@ -2,6 +2,7 @@ export const DEFAULT_SETTINGS = {
   saveMode: 'ask',
   quality: 'best',
   playbackRate: 1,
+  storyMuted: false,
   showSpeedButton: true,
   showDate: true,
   hoverButton: true,

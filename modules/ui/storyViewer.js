@@ -1,5 +1,6 @@
 import { h, clear } from '../core/dom.js';
 import { t, errorMessage, timeAgo } from '../core/i18n.js';
+import { cachedSettings, updateSettings } from '../core/storage.js';
 import { fetchUser, fetchStories } from '../api/tiktok.js';
 import { downloadMedia, downloadThumbnail } from '../services/downloads.js';
 import { icon } from './icons.js';
@@ -9,9 +10,9 @@ import { runDownload, runBatch } from './actions.js';
 import { openAvatar } from './avatar.js';
 
 const PHOTO_DURATION = 6000;
-let muted = false;
 
 export function openStoryViewer(username) {
+  let muted = Boolean(cachedSettings().storyMuted);
   let items = [];
   let index = 0;
   let paused = false;
@@ -119,6 +120,7 @@ export function openStoryViewer(username) {
     if (media instanceof HTMLVideoElement) media.muted = muted;
     muteButton.replaceChildren(icon(muted ? 'volumeOff' : 'volume', { size: 20 }));
     muteButton.title = muted ? t('UNMUTE') : t('MUTE');
+    updateSettings({ storyMuted: muted }).catch(() => {});
   }
 
   function failed() {
