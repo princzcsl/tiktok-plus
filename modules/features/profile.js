@@ -108,8 +108,8 @@ function injectActions() {
 
   const subtitle = document.querySelector('[data-e2e="user-subtitle"]');
   const title = document.querySelector('[data-e2e="user-title"]');
-  const anchor = subtitle?.parentElement?.parentElement ? subtitle.parentElement : title;
-  if (!anchor?.parentElement) return;
+  const row = subtitle?.parentElement;
+  if (!row && !title?.parentElement) return;
 
   const actions = h('div', { class: 'ttp-profile-actions', dataset: { ttpFeature: FEATURE } },
     featureButton(FEATURE, {
@@ -138,7 +138,12 @@ function injectActions() {
     })
   );
 
-  anchor.insertAdjacentElement('afterend', actions);
+  if (row) {
+    actions.classList.add('ttp-profile-actions--inline');
+    row.append(actions);
+  } else {
+    title.insertAdjacentElement('afterend', actions);
+  }
   logger.success('[profile] Boutons injectés');
 }
 
