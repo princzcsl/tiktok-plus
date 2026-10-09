@@ -38,6 +38,8 @@ const STRINGS = {
     SELECT_HINT: 'Sélectionner des publications à télécharger',
     SELECT_ALL: 'Tout sélectionner',
     N_SELECTED: '{n} sélectionnée(s)',
+    N_SELECTED_LABEL: 'sélectionnée(s)',
+    NONE_SELECTED: 'Aucune sélection',
 
     STORIES_BTN: 'Stories',
     STORIES_HINT: 'Voir les stories sans laisser de vu',
@@ -188,6 +190,8 @@ const STRINGS = {
     SELECT_HINT: 'Select posts to download',
     SELECT_ALL: 'Select all',
     N_SELECTED: '{n} selected',
+    N_SELECTED_LABEL: 'selected',
+    NONE_SELECTED: 'Nothing selected',
 
     STORIES_BTN: 'Stories',
     STORIES_HINT: 'Watch stories without being seen',

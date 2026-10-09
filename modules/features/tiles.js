@@ -94,7 +94,10 @@ function renderSelection() {
   });
   if (!selection.bar) return;
   const count = selection.items.size;
-  selection.bar.querySelector('.ttp-select-count').textContent = t('N_SELECTED', { n: count });
+  const label = selection.bar.querySelector('.ttp-select-count');
+  if (count) label.replaceChildren(h('strong', {}, String(count)), ` ${t('N_SELECTED_LABEL', { n: count })}`);
+  else label.textContent = t('NONE_SELECTED');
+  selection.bar.querySelector('.ttp-select-badge').textContent = count ? String(count) : '';
   selection.bar.querySelector('.ttp-select-all').classList.toggle('ttp-on', selection.all);
   selection.bar.querySelector('.ttp-select-download').disabled = !count;
 }
@@ -118,8 +121,13 @@ export function startSelection() {
       h('span', { class: 'ttp-select-box', html: iconSvg('check', { size: 14, stroke: 3 }) }),
       t('SELECT_ALL')
     ),
+    h('span', { class: 'ttp-select-sep' }),
     h('span', { class: 'ttp-select-count' }),
-    h('button', { class: 'ttp-select-download ttp-primary', type: 'button', on: { click: downloadSelection } }, icon('download', { size: 16 }), t('DOWNLOAD')),
+    h('button', { class: 'ttp-select-download', type: 'button', on: { click: downloadSelection } },
+      icon('download', { size: 16 }),
+      t('DOWNLOAD'),
+      h('span', { class: 'ttp-select-badge' })
+    ),
     h('button', { class: 'ttp-select-cancel', type: 'button', title: t('CANCEL'), on: { click: stopSelection } }, icon('close', { size: 16 }))
   );
   ['pointerdown', 'mousedown', 'click'].forEach(type => selection.bar.addEventListener(type, e => e.stopPropagation()));
