@@ -106,8 +106,10 @@ function injectActions() {
   existing?.querySelector('.ttp-select-pill')?.classList.toggle('ttp-on', isSelecting());
   if (existing) return;
 
+  const subtitle = document.querySelector('[data-e2e="user-subtitle"]');
   const title = document.querySelector('[data-e2e="user-title"]');
-  if (!title?.parentElement) return;
+  const anchor = subtitle?.parentElement?.parentElement ? subtitle.parentElement : title;
+  if (!anchor?.parentElement) return;
 
   const actions = h('div', { class: 'ttp-profile-actions', dataset: { ttpFeature: FEATURE } },
     featureButton(FEATURE, {
@@ -136,7 +138,7 @@ function injectActions() {
     })
   );
 
-  title.insertAdjacentElement('afterend', actions);
+  anchor.insertAdjacentElement('afterend', actions);
   logger.success('[profile] Boutons injectés');
 }
 
