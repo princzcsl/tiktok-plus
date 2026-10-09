@@ -20,6 +20,7 @@ const FEATURE = 'videos';
 const LIKE_ICONS = '[data-e2e="like-icon"], [data-e2e="browse-like-icon"], [data-e2e="video-player-like-icon"]';
 const SIBLING_ICONS = '[data-e2e="share-icon"], [data-e2e="browse-share-icon"], [data-e2e="comment-icon"], [data-e2e="browse-comment-icon"]';
 const SHARE_ICONS = '[data-e2e="share-icon"], [data-e2e="browse-share-icon"]';
+const VOLUME_CONTROLS = '[class*="Volume"], [class*="volume"], [class*="Mute"], [class*="mute"], [class*="Sound"], [aria-label], [data-e2e*="sound"], [data-e2e*="volume"], [data-e2e*="mute"]';
 const DESCRIPTIONS = '[data-e2e="video-desc"], [data-e2e="browse-video-desc"]';
 const FEED_ITEMS = 'article, [data-e2e="recommend-list-item-container"]';
 const ITEM_SCOPES = 'article, [data-e2e="recommend-list-item-container"], [data-e2e="feed-video"], [class*="DivItemContainer"]';
@@ -248,14 +249,164 @@ function downloadButton(layout, placement, size) {
   });
 }
 
+const VOLUME_SLIDER_RESERVE = 110;
+const SLIDER_MAX_HEIGHT = 200;
+const VOLUME_LABEL = /volume|mute|unmute|sound|\bson\b|muet|sourdine/i;
+const VOLUME_CLASS = /volume|mute|sound/i;
+let volumeMissLogged = false;
+
+function isVolumeCandidate(el) {
+  if (el.closest('article, .ttp-root, .ttp-btn')) return false;
+  const label = `${el.getAttribute('aria-label') || ''} ${el.getAttribute('title') || ''} ${el.dataset?.e2e || ''}`;
+  if (!VOLUME_LABEL.test(label) && !VOLUME_CLASS.test(String(el.className))) return false;
+  const rect = el.getBoundingClientRect();
+  return rect.width >= 24 && rect.width <= 90 && rect.height >= 24 && rect.height <= 90;
+}
+
+function visibleVolumeControl() {
+  const found = [...document.querySelectorAll(VOLUME_CONTROLS)].filter(isVolumeCandidate);
+  const outer = found.filter(el => !found.some(other => other !== el && other.contains(el)));
+  const score = (el) => {
+    const rect = el.getBoundingClientRect();
+    return rect.bottom * 2 + rect.right;
+  };
+  const best = outer.sort((a, b) => score(b) - score(a))[0] || null;
+
+  if (!best && !volumeMissLogged) {
+    volumeMissLogged = true;
+    const nearBottom = [...document.querySelectorAll('button, [role="button"]')]
+      .filter(el => el.getBoundingClientRect().top > innerHeight * 0.7 && el.getBoundingClientRect().width > 0)
+      .map(el => `${el.tagName} aria="${el.getAttribute('aria-label') || ''}" e2e="${el.dataset?.e2e || ''}" class="${String(el.className).slice(0, 80)}"`);
+    logger.warning('Sound button not found, bottom buttons:', nearBottom);
+  }
+  return best;
+}
+
+const sound = { volume: null, root: null, tools: null, overVolume: false, overSlider: false, overTools: false, timer: null, bound: false };
+
+function soundTools(showSpeedButton) {
+  let tools = sound.tools;
+  if (!tools?.isConnected) {
+    tools = h('div', { class: 'ttp-sound-tools', dataset: { ttpFeature: FEATURE } }, downloadButton('ttp-round-btn', 'top', 22));
+    ['pointerdown', 'mousedown', 'click', 'dblclick'].forEach(type => tools.addEventListener(type, e => e.stopPropagation()));
+    tools.addEventListener('mouseenter', () => { sound.overTools = true; refreshSound(); });
+    tools.addEventListener('mouseleave', () => { sound.overTools = false; refreshSound(); });
+    document.body.append(tools);
+    sound.tools = tools;
+  }
+
+  const speed = tools.querySelector('.ttp-speed-btn');
+  if (showSpeedButton && !speed) tools.append(speedButton(FEATURE, 'ttp-round-btn', true));
+  else if (!showSpeedButton && speed) speed.remove();
+  return tools;
+}
+
+function placeAboveVolume(volume, showSpeedButton) {
+  const root = volume.parentElement?.parentElement || volume.parentElement;
+  if (!root) return false;
+  soundTools(showSpeedButton);
+
+  if (sound.volume !== volume) {
+    sound.root?.classList.remove('ttp-volume-active');
+    Object.assign(sound, { volume, root, overVolume: false, overSlider: false });
+    volume.addEventListener('mouseenter', () => { if (sound.volume === volume) { sound.overVolume = true; refreshSound(); } });
+    volume.addEventListener('mouseleave', () => { if (sound.volume === volume) { sound.overVolume = false; refreshSound(); } });
+    root.addEventListener('mouseover', () => { if (sound.root === root) markSlider(); });
+  }
+
+  if (!sound.bound) {
+    sound.bound = true;
+    window.addEventListener('resize', positionSoundTools);
+    window.addEventListener('scroll', positionSoundTools, true);
+  }
+
+  markSlider();
+  positionSoundTools();
+  return true;
+}
+
+function positionSoundTools() {
+  const { tools, volume } = sound;
+  if (!tools || !volume?.isConnected) return;
+  const v = volume.getBoundingClientRect();
+  tools.style.left = `${v.left + v.width / 2}px`;
+  tools.style.top = `${v.top - 10}px`;
+}
+
+function removeSoundTools() {
+  sound.root?.classList.remove('ttp-volume-active');
+  sound.tools?.remove();
+  Object.assign(sound, { volume: null, root: null, tools: null, overVolume: false, overSlider: false, overTools: false });
+}
+
+function sliderParts() {
+  const { volume, root } = sound;
+  if (!volume?.isConnected || !root) return [];
+  const v = volume.getBoundingClientRect();
+  const icon = volume.querySelector('svg');
+  return [...root.querySelectorAll('*')].filter(el => {
+    if (el === volume || el.contains(volume)) return false;
+    if (icon && (el === icon || el.contains(icon) || icon.contains(el))) return false;
+    const r = el.getBoundingClientRect();
+    return r.height > 0 && r.bottom <= v.top + 4 && r.top >= v.top - SLIDER_MAX_HEIGHT && r.right > v.left - 12 && r.left < v.right + 12;
+  });
+}
+
+function markSlider() {
+  for (const el of sliderParts()) {
+    if (el.classList.contains('ttp-volume-slider')) continue;
+    el.classList.add('ttp-volume-slider');
+    el.addEventListener('mouseenter', () => { sound.overSlider = true; refreshSound(); });
+    el.addEventListener('mouseleave', () => { sound.overSlider = false; refreshSound(); });
+  }
+}
+
+function refreshSound() {
+  clearTimeout(sound.timer);
+  const active = sound.overVolume || sound.overSlider;
+  const lifted = active || (sound.overTools && Boolean(sound.tools?.classList.contains('ttp-lifted')));
+
+  const apply = () => {
+    sound.root?.classList.toggle('ttp-volume-active', active);
+    const tools = sound.tools;
+    if (!tools) return;
+    if (!lifted) {
+      tools.classList.remove('ttp-lifted');
+      return;
+    }
+    markSlider();
+    requestAnimationFrame(() => {
+      if (!sound.volume?.isConnected) return;
+      const v = sound.volume.getBoundingClientRect();
+      const parts = sliderParts();
+      const top = parts.length ? Math.min(...parts.map(el => el.getBoundingClientRect().top)) : v.top - VOLUME_SLIDER_RESERVE;
+      tools.style.setProperty('--ttp-lift', `${Math.max(0, v.top - top)}px`);
+      tools.classList.add('ttp-lifted');
+    });
+  };
+
+  if (lifted) apply();
+  else sound.timer = setTimeout(apply, 200);
+}
+
 function injectButtons() {
   const { showSpeedButton } = cachedSettings();
+  let soundPlaced = false;
 
   document.querySelectorAll(LIKE_ICONS).forEach(like => {
     const bar = findActionBar(like);
     if (!bar) return;
 
     const vertical = getComputedStyle(bar).flexDirection.startsWith('column');
+    if (!vertical) {
+      const volume = soundPlaced ? sound.volume : visibleVolumeControl();
+      if (volume && (soundPlaced || placeAboveVolume(volume, showSpeedButton))) {
+        soundPlaced = true;
+        bar.querySelectorAll(':scope > .ttp-dl-btn, :scope > .ttp-speed-btn').forEach(el => el.remove());
+        return;
+      }
+    }
+
     const layout = vertical ? 'ttp-dl-btn--vertical' : 'ttp-dl-btn--inline';
     let download = bar.querySelector(':scope > .ttp-dl-btn');
 
@@ -271,6 +422,8 @@ function injectButtons() {
     if (wantSpeed && !speed) download.insertAdjacentElement('afterend', speedButton(FEATURE, layout, vertical));
     else if (!wantSpeed && speed) speed.remove();
   });
+
+  if (!soundPlaced && sound.tools) removeSoundTools();
 }
 
 function injectDates() {

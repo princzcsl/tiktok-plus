@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.4.2
+- Opened video (comments on the side): download and speed buttons sit above the sound button and slide up when the volume slider opens; the slider only shows when the mouse is on the sound icon
+- Download button on stories opened from the Following tab
+- Ghost story player: progress bars no longer show as full, and the story pauses while it is being downloaded
+- Native story player: the story pauses while the download menu is open
+
 ## 1.4.1
 - Ghost story player: the header no longer squeezes the username
 - README with screenshots and a download section

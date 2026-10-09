@@ -53,8 +53,8 @@ export function openStoryViewer(username) {
     h('div', { class: 'ttp-story-tools' },
       pauseButton,
       muteButton,
-      toolbarButton('download', t('DOWNLOAD'), () => items[index] && runDownload(() => downloadMedia(items[index]))),
-      toolbarButton('image', t('MENU_THUMB'), () => items[index] && runDownload(() => downloadThumbnail(items[index]), { thumbnail: true })),
+      toolbarButton('download', t('DOWNLOAD'), () => items[index] && whilePaused(() => runDownload(() => downloadMedia(items[index])))),
+      toolbarButton('image', t('MENU_THUMB'), () => items[index] && whilePaused(() => runDownload(() => downloadThumbnail(items[index]), { thumbnail: true }))),
       toolbarButton('downloadAll', t('STORIES_DOWNLOAD_ALL'), () => downloadAllStories())
     )
   );
@@ -76,7 +76,7 @@ export function openStoryViewer(username) {
   }
 
   function setFill(ratio) {
-    progress.children[index]?.firstChild.style.setProperty('--ttp-fill', `${Math.min(1, Math.max(0, ratio)) * 100}%`);
+    progress.children[index]?.firstChild.style.setProperty('--ttp-seg', `${Math.min(1, Math.max(0, ratio)) * 100}%`);
   }
 
   function stopPhotoTimer() {
@@ -195,10 +195,19 @@ export function openStoryViewer(username) {
     show(next);
   }
 
+  async function whilePaused(task) {
+    const wasPaused = paused;
+    togglePause(true);
+    try {
+      await task();
+    } finally {
+      if (!wasPaused) togglePause(false);
+    }
+  }
+
   async function downloadAllStories() {
     if (!items.length) return;
-    togglePause(true);
-    await runBatch(async () => items);
+    await whilePaused(() => runBatch(async () => items));
   }
 
   (async () => {
