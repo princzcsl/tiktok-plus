@@ -3,6 +3,7 @@ import { t, errorMessage, timeAgo } from '../core/i18n.js';
 import { fetchUser, fetchStories } from '../api/tiktok.js';
 import { downloadMedia, downloadThumbnail, downloadItem, openBatch } from '../services/downloads.js';
 import { toast } from './toast.js';
+import { logger } from '../core/logger.js';
 import { icon } from './icons.js';
 import { openOverlay } from './overlay.js';
 import { toolbarButton } from './imageViewer.js';
@@ -208,17 +209,20 @@ export function openStoryViewer(username) {
 
     const progress = toast.progress(t('DL_PROGRESS', { done: 0, total: items.length }));
     let failed = 0;
+    let firstError = null;
     for (const [i, item] of items.entries()) {
       try {
         await downloadItem(item, dir);
-      } catch {
+      } catch (error) {
         failed++;
+        firstError ??= error;
+        logger.warning(`Story ${item.id} impossible : ${error?.message || error}`, error);
       }
       progress.update(t('DL_PROGRESS', { done: i + 1, total: items.length }), (i + 1) / items.length);
     }
     const done = items.length - failed;
     const message = dir ? t('DL_ALL_SAVED_AT', { n: done, where: dir.name }) : t('DL_ALL_DONE', { n: done });
-    if (failed) progress.fail(`${message} · ${t('N_FAILED', { n: failed })}`);
+    if (failed) progress.fail(`${message} · ${t('N_FAILED', { n: failed })} (${errorMessage(firstError)})`);
     else progress.done(message);
   }
 

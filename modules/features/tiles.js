@@ -1,5 +1,5 @@
 import { h, stopEvent, sleep } from '../core/dom.js';
-import { t } from '../core/i18n.js';
+import { t, errorMessage } from '../core/i18n.js';
 import { logger } from '../core/logger.js';
 import { parseRoute } from '../core/router.js';
 import { cachedSettings } from '../core/storage.js';
@@ -155,13 +155,15 @@ async function downloadSelection() {
   stopSelection();
   const progress = toast.progress(t('DL_PROGRESS', { done: 0, total: targets.length }));
   let failed = 0;
+  let firstError = null;
 
   for (const [index, target] of targets.entries()) {
     try {
       await downloadItem(await fetchItem(target.id, target.username), dir);
     } catch (error) {
       failed++;
-      logger.warning(`Téléchargement ${target.id} impossible`, error);
+      firstError ??= error;
+      logger.warning(`Téléchargement ${target.id} (@${target.username}) impossible : ${error?.message || error}`, error);
     }
     progress.update(t('DL_PROGRESS', { done: index + 1, total: targets.length }), (index + 1) / targets.length);
     if (index < targets.length - 1) await sleep(BATCH_DELAY);
@@ -169,7 +171,7 @@ async function downloadSelection() {
 
   const done = targets.length - failed;
   const message = dir ? t('DL_ALL_SAVED_AT', { n: done, where: dir.name }) : t('DL_ALL_DONE', { n: done });
-  if (failed) progress.fail(`${message} · ${t('N_FAILED', { n: failed })}`);
+  if (failed) progress.fail(`${message} · ${t('N_FAILED', { n: failed })} (${errorMessage(firstError)})`);
   else progress.done(message);
 }
 
