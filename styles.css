@@ -529,12 +529,23 @@ html[data-ttp-theme="dark"] .ttp-dl-btn--vertical { color: rgba(255, 255, 255, 0
   left: 0;
   right: 0;
   display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 22px 8px 28px 12px;
-  background: linear-gradient(rgba(0, 0, 0, 0.55), transparent);
+  flex-direction: column;
+  gap: 4px;
+  padding: 20px 8px 28px 12px;
+  background: linear-gradient(rgba(0, 0, 0, 0.6), transparent);
   z-index: 2;
 }
+
+.ttp-story-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.ttp-story-top .ttp-story-user { flex: 1; }
+.ttp-story-top .ttp-tool { width: 34px; height: 34px; flex-shrink: 0; color: #fff; }
+.ttp-story-top .ttp-tool svg { width: 19px; height: 19px; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.5)); }
 
 .ttp-story-user {
   display: flex;
@@ -590,7 +601,8 @@ html[data-ttp-theme="dark"] .ttp-dl-btn--vertical { color: rgba(255, 255, 255, 0
 
 .ttp-story-tools {
   display: flex;
-  margin-left: auto;
+  justify-content: flex-end;
+  gap: 2px;
 }
 
 .ttp-story-tools .ttp-tool { width: 34px; height: 34px; color: #fff; }

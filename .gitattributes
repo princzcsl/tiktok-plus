@@ -1,0 +1,6 @@
+screenshots export-ignore
+screenshots/** export-ignore
+release.sh export-ignore
+CHANGELOG.md export-ignore
+.gitattributes export-ignore
+.gitignore export-ignore

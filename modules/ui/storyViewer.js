@@ -42,18 +42,20 @@ export function openStoryViewer(username) {
   const muteButton = toolbarButton(muted ? 'volumeOff' : 'volume', muted ? t('UNMUTE') : t('MUTE'), () => toggleMute());
 
   const header = h('div', { class: 'ttp-story-header' },
-    h('button', { class: 'ttp-story-user', type: 'button', on: { click: () => openAvatar(username) } },
-      avatar,
-      h('span', { class: 'ttp-story-user-text' }, name, time)
+    h('div', { class: 'ttp-story-top' },
+      h('button', { class: 'ttp-story-user', type: 'button', on: { click: () => openAvatar(username) } },
+        avatar,
+        h('span', { class: 'ttp-story-user-text' }, name, time)
+      ),
+      ghost,
+      toolbarButton('close', t('CLOSE'), close)
     ),
-    ghost,
     h('div', { class: 'ttp-story-tools' },
       pauseButton,
       muteButton,
       toolbarButton('download', t('DOWNLOAD'), () => items[index] && runDownload(() => downloadMedia(items[index]))),
       toolbarButton('image', t('MENU_THUMB'), () => items[index] && runDownload(() => downloadThumbnail(items[index]), { thumbnail: true })),
-      toolbarButton('downloadAll', t('STORIES_DOWNLOAD_ALL'), () => downloadAllStories()),
-      toolbarButton('close', t('CLOSE'), close)
+      toolbarButton('downloadAll', t('STORIES_DOWNLOAD_ALL'), () => downloadAllStories())
     )
   );
 
