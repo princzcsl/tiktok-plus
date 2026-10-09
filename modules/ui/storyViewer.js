@@ -1,13 +1,11 @@
 import { h, clear } from '../core/dom.js';
 import { t, errorMessage, timeAgo } from '../core/i18n.js';
 import { fetchUser, fetchStories } from '../api/tiktok.js';
-import { downloadMedia, downloadThumbnail, downloadItem, openBatch } from '../services/downloads.js';
-import { toast } from './toast.js';
-import { logger } from '../core/logger.js';
+import { downloadMedia, downloadThumbnail } from '../services/downloads.js';
 import { icon } from './icons.js';
 import { openOverlay } from './overlay.js';
 import { toolbarButton } from './imageViewer.js';
-import { runDownload } from './actions.js';
+import { runDownload, runBatch } from './actions.js';
 import { openAvatar } from './avatar.js';
 
 const PHOTO_DURATION = 6000;
@@ -195,35 +193,8 @@ export function openStoryViewer(username) {
 
   async function downloadAllStories() {
     if (!items.length) return;
-    const wasPaused = paused;
     togglePause(true);
-
-    let dir;
-    try {
-      dir = await openBatch();
-    } catch (error) {
-      if (error.name !== 'AbortError') toast.error(error);
-      if (!wasPaused) togglePause(false);
-      return;
-    }
-
-    const progress = toast.progress(t('DL_PROGRESS', { done: 0, total: items.length }));
-    let failed = 0;
-    let firstError = null;
-    for (const [i, item] of items.entries()) {
-      try {
-        await downloadItem(item, dir);
-      } catch (error) {
-        failed++;
-        firstError ??= error;
-        logger.warning(`Story ${item.id} impossible : ${error?.message || error}`, error);
-      }
-      progress.update(t('DL_PROGRESS', { done: i + 1, total: items.length }), (i + 1) / items.length);
-    }
-    const done = items.length - failed;
-    const message = dir ? t('DL_ALL_SAVED_AT', { n: done, where: dir.name }) : t('DL_ALL_DONE', { n: done });
-    if (failed) progress.fail(`${message} · ${t('N_FAILED', { n: failed })} (${errorMessage(firstError)})`);
-    else progress.done(message);
+    await runBatch(async () => items);
   }
 
   (async () => {

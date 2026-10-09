@@ -32,6 +32,8 @@ On the post on screen: **D** download · **A** sound · **X** capture. Keys can 
 ### Ghost mode stories
 **Stories** button under a profile's username. Stories are read through the list API and shown in the TikTok+ player, without ever opening the native player: no view is sent. You can download a story, its thumbnail, or **all stories** at once.
 
+In TikTok's **regular story player**, a download button also appears to the left of "Share". It offers the story (video or photo), its thumbnail, the sound, a capture of the current frame, and all of the account's stories.
+
 ### HD profile picture
 Magnifier badge in the center of a profile's avatar, or **HD picture** button: 1080×1080 with zoom. The rest of the avatar keeps TikTok's normal click.
 
