@@ -19,7 +19,7 @@ Chrome extension (Manifest V3) that adds tools to TikTok. Everything runs locall
   - **Capture the current frame**, in full resolution (PNG)
 - **Button on thumbnail hover** (profile, search…), opening the same menu.
 - **Selection on a profile**: **Select** button, then tick posts one by one or use **Select all**. Thumbnails loaded later while scrolling are ticked too. Videos and photo posts are supported, with a single folder choice for the whole batch.
-- **Automatic naming**: `@username_id`, e.g. `@username_7412345678901234567.mp4`. Photos `_01`, `_02`…; thumbnail `_miniature`; capture `_capture`.
+- **Automatic naming**: `username_id`, e.g. `username_7412345678901234567.mp4`. Photos `_01`, `_02`…; thumbnail `_miniature`; capture `_capture`.
 - **Location**: asked every time (last folder remembered), or saved directly to `Downloads/TikTok+/` depending on the settings.
 
 ### Keyboard shortcuts

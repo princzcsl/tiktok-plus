@@ -7,7 +7,7 @@ import { isPickerSupported, saveWithPicker, saveBlobWithPicker, pickDirectory, s
 const DOWNLOAD_ROOT = 'TikTok+';
 
 export function buildName(username, ...parts) {
-  return sanitizeFilename([`@${username || 'tiktok'}`, ...parts.filter(part => part !== null && part !== undefined && part !== '')].join('_'));
+  return sanitizeFilename([username || 'tiktok', ...parts.filter(part => part !== null && part !== undefined && part !== '')].join('_'));
 }
 
 function guessExt(urls, fallback) {
