@@ -144,6 +144,17 @@ html[data-ttp-theme="dark"] .ttp-dl-btn--vertical .ttp-btn-icon {
   gap: 6px;
 }
 
+.ttp-bar-tools {
+  position: absolute;
+  right: calc(100% + 10px);
+  bottom: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+
 .ttp-float-btn {
   height: 36px;
   min-width: 36px;

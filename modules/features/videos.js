@@ -241,17 +241,36 @@ function downloadButton(layout, placement, size) {
   });
 }
 
-function injectFloatingTools(card, showSpeedButton) {
-  let tools = card.querySelector(':scope > .ttp-video-tools');
+function injectFloatingTools(card, showSpeedButton, className = 'ttp-video-tools') {
+  let tools = card.querySelector(':scope > .ttp-video-tools, :scope > .ttp-bar-tools');
   if (!tools) {
-    tools = h('div', { class: 'ttp-video-tools', dataset: { ttpFeature: FEATURE } }, downloadButton('ttp-float-btn', 'bottom', 20));
+    tools = h('div', { class: className, dataset: { ttpFeature: FEATURE } }, downloadButton('ttp-float-btn', 'bottom', 20));
     ['pointerdown', 'mousedown', 'click', 'dblclick'].forEach(type => tools.addEventListener(type, e => e.stopPropagation()));
+    if (getComputedStyle(card).position === 'static') card.style.position = 'relative';
     card.append(tools);
   }
 
   const speed = tools.querySelector('.ttp-speed-btn');
   if (showSpeedButton && !speed) tools.append(speedButton(FEATURE, 'ttp-float-btn', false));
   else if (!showSpeedButton && speed) speed.remove();
+}
+
+function videoCardNear(bar) {
+  let el = bar.parentElement;
+  for (let depth = 0; el && el !== document.body && depth < 4; depth++, el = el.parentElement) {
+    const section = el.querySelector('section[data-e2e="feed-video"]');
+    if (section && !section.contains(bar)) return section;
+    const player = el.querySelector('[id^="xgwrapper-"]');
+    if (player && !player.contains(bar)) {
+      const target = player.getBoundingClientRect();
+      for (let box = player.parentElement; box && box !== el; box = box.parentElement) {
+        const r = box.getBoundingClientRect();
+        if (r.height >= target.height - 2 && r.width >= target.width - 2 && getComputedStyle(box).position !== 'static') return box;
+      }
+      return player.parentElement;
+    }
+  }
+  return null;
 }
 
 function injectButtons() {
@@ -262,9 +281,10 @@ function injectButtons() {
     if (!bar) return;
 
     const vertical = getComputedStyle(bar).flexDirection.startsWith('column');
-    const card = vertical ? bar.closest('article')?.querySelector('section[data-e2e="feed-video"]') : null;
-    if (card) {
-      injectFloatingTools(card, showSpeedButton);
+    if (vertical) {
+      const card = videoCardNear(bar);
+      if (card) injectFloatingTools(card, showSpeedButton);
+      else injectFloatingTools(bar, showSpeedButton, 'ttp-bar-tools');
       return;
     }
 
