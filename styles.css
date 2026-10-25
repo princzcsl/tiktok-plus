@@ -1288,3 +1288,55 @@ html:not(.ttp-selecting) [data-ttp-tile]::before { display: none; }
 }
 
 .ttp-story-dl--floating:hover { background: rgba(0, 0, 0, 0.6); }
+
+
+.ttp-account-sheet {
+  display: flex;
+  flex-direction: column;
+  width: min(400px, calc(100vw - 32px));
+  max-height: min(620px, calc(100vh - 48px));
+  overflow: hidden;
+  border-radius: 18px;
+  animation: ttp-menu-in 0.2s ease-out;
+}
+
+.ttp-account-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 10px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.ttp-account-list > .ttp-help { padding: 8px 10px; }
+
+.ttp-account-row {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-height: 56px;
+  padding: 7px 10px;
+  border-radius: 12px;
+  cursor: pointer;
+  outline: none;
+  transition: background 0.1s ease;
+}
+
+.ttp-account-row:hover,
+.ttp-account-row:focus-visible { background: rgba(var(--ttp-tint), 0.09); }
+.ttp-account-row.ttp-on { cursor: default; background: rgba(var(--ttp-tint), 0.06); }
+
+.ttp-account-text { display: flex; flex-direction: column; flex: 1; min-width: 0; font-size: 13.5px; }
+.ttp-account-text > * { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ttp-account-text .ttp-muted { font-size: 12.5px; }
+
+.ttp-account-row .ttp-chip { display: inline-flex; align-items: center; gap: 4px; }
+.ttp-account-remove { width: 32px; height: 32px; color: var(--ttp-muted); opacity: 0; transition: opacity 0.1s ease; }
+.ttp-account-row:hover .ttp-account-remove,
+.ttp-account-remove:focus-visible { opacity: 1; }
+.ttp-account-remove:hover { color: var(--ttp-pink); }
+
+.ttp-account-add { margin: 8px 20px 0; height: 38px; }
+.ttp-account-help { margin: 10px 20px 18px; }
+.ttp-accounts.ttp-busy .ttp-account-sheet { opacity: 0.6; pointer-events: none; }

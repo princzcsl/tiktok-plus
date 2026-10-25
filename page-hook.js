@@ -225,7 +225,7 @@
       const universal = document.getElementById('__UNIVERSAL_DATA_FOR_REHYDRATION__');
       const me = JSON.parse(universal?.textContent || '{}')?.__DEFAULT_SCOPE__?.['webapp.app-context']?.user;
       if (me?.uid && me?.secUid) {
-        window.postMessage({ source: SOURCE, viewer: { id: String(me.uid), secUid: me.secUid, username: me.uniqueId || '' } }, location.origin);
+        window.postMessage({ source: SOURCE, viewer: { id: String(me.uid), secUid: me.secUid, username: me.uniqueId || '', nickname: me.nickName || '', avatar: [me.avatarUri].flat()[0] || '' } }, location.origin);
       }
     } catch {}
   };

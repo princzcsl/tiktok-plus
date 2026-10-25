@@ -32,6 +32,8 @@ const PATHS = {
   copy: '<rect x="8" y="8" width="13" height="13" rx="2.5"/><path d="M16 8V5.5A2.5 2.5 0 0 0 13.5 3h-8A2.5 2.5 0 0 0 3 5.5v8A2.5 2.5 0 0 0 5.5 16H8"/>',
   star: '<path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.3l-5.6 2.9 1.1-6.2L3 9.6l6.2-.9L12 3z"/>',
   starFilled: '<path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.3l-5.6 2.9 1.1-6.2L3 9.6l6.2-.9L12 3z" fill="currentColor"/>',
+  userPlus: '<circle cx="9" cy="8" r="4"/><path d="M2 21a7 7 0 0 1 14 0"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="16" y1="11" x2="22" y2="11"/>',
+  switchUser: '<circle cx="9" cy="8" r="4"/><path d="M2 21a7 7 0 0 1 11-5.7"/><polyline points="17 13 15 15 17 17"/><path d="M15 15h7"/><polyline points="20 18 22 20 20 22"/><path d="M22 20h-7"/>',
   users: '<circle cx="9" cy="8" r="4"/><path d="M2 21a7 7 0 0 1 14 0"/><path d="M16 4.1a4 4 0 0 1 0 7.8"/><path d="M22 21a7 7 0 0 0-4.5-6.5"/>',
   fingerprint: '<path d="M12 11v3a8 8 0 0 1-1.5 4.7"/><path d="M8 6.5A6 6 0 0 1 18 11v1.5"/><path d="M6 10a6 6 0 0 1 .5-2.4"/><path d="M8.5 11a3.5 3.5 0 0 1 7 0v2a12 12 0 0 1-1 4.8"/><path d="M6 14.5a14 14 0 0 1 0-3.5"/><path d="M18 16.5a19 19 0 0 1-1 3.5"/><path d="M8 18.5A10 10 0 0 0 8.8 15"/>',
   search: '<circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="21" y2="21"/>',

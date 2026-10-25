@@ -190,6 +190,18 @@ const STRINGS = {
     SET_CLEAR_TRACKING: 'Données de suivi',
     SET_CLEAR_TRACKING_HELP: 'Listes enregistrées et historique du compte connecté',
     SET_CLEAR_TRACKING_CONFIRM: 'Effacer les listes enregistrées et tout l\'historique de suivi de ce compte ?',
+    ACCOUNT_SWITCH: 'Changer de compte',
+    ACCOUNTS_TITLE: 'Comptes',
+    ACCOUNT_ADD: 'Ajouter un compte',
+    ACCOUNT_CURRENT: 'Connecté',
+    ACCOUNT_EXPIRED: 'Session expirée',
+    ACCOUNT_REMOVE: 'Retirer ce compte',
+    ACCOUNT_REMOVE_CONFIRM: 'Retirer @{username} de la liste ? Tu pourras le rajouter en te reconnectant.',
+    ACCOUNT_SWITCHING: 'Passage sur @{username}…',
+    ACCOUNT_LOGIN_TOAST: 'Session de @{username} expirée : reconnecte-toi',
+    ACCOUNT_EXPIRED_TOAST: 'La session de @{username} a expiré, reconnecte-toi sur ce compte pour l’enregistrer à nouveau',
+    ACCOUNTS_EMPTY: 'Connecte-toi à TikTok : le compte sera enregistré automatiquement.',
+    ACCOUNTS_HELP: 'Chaque compte est enregistré automatiquement quand tu es connecté, et sa session reste dans ce navigateur. « Se déconnecter » sur TikTok ferme la session : il faudra te reconnecter sur ce compte.',
     SET_CLEAR_TRACKING_DONE: 'Données de suivi effacées'
   },
   en: {
@@ -383,6 +395,18 @@ const STRINGS = {
     SET_CLEAR_TRACKING: 'Tracking data',
     SET_CLEAR_TRACKING_HELP: 'Saved lists and history of the logged-in account',
     SET_CLEAR_TRACKING_CONFIRM: 'Clear the saved lists and the whole tracking history of this account?',
+    ACCOUNT_SWITCH: 'Switch account',
+    ACCOUNTS_TITLE: 'Accounts',
+    ACCOUNT_ADD: 'Add account',
+    ACCOUNT_CURRENT: 'Logged in',
+    ACCOUNT_EXPIRED: 'Session expired',
+    ACCOUNT_REMOVE: 'Remove this account',
+    ACCOUNT_REMOVE_CONFIRM: 'Remove @{username} from the list? You can add it again by logging in.',
+    ACCOUNT_SWITCHING: 'Switching to @{username}…',
+    ACCOUNT_LOGIN_TOAST: 'Session of @{username} expired: log in again',
+    ACCOUNT_EXPIRED_TOAST: 'The session of @{username} expired, log in to that account to save it again',
+    ACCOUNTS_EMPTY: 'Log in to TikTok: the account is saved automatically.',
+    ACCOUNTS_HELP: 'Each account is saved automatically while you are logged in, and its session stays in this browser. "Log out" on TikTok ends the session: you will have to log in to that account again.',
     SET_CLEAR_TRACKING_DONE: 'Tracking data cleared'
   }
 };

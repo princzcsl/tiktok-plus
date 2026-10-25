@@ -69,6 +69,24 @@ const HANDLERS = {
   openTab: async ({ url }, sender) => {
     await chrome.tabs.create({ url: assertUrl(url), index: sender.tab ? sender.tab.index + 1 : undefined });
     return {};
+  },
+  accountList: async () => ({ accounts: publicAccounts(await loadAccounts()) }),
+  accountSeen: async ({ viewer }, sender) => accountSeen(viewer, sender.tab),
+  accountSwitch: async ({ id, viewer }, sender) => accountSwitch(id, viewer, sender.tab),
+  accountAdd: async ({ viewer }, sender) => accountAdd(viewer, sender.tab),
+  accountLoggedOut: async ({ id }) => {
+    const accounts = await loadAccounts();
+    if (accounts[id]) {
+      accounts[id].expired = true;
+      await saveAccounts(accounts);
+    }
+    return {};
+  },
+  accountRemove: async ({ id }) => {
+    const accounts = await loadAccounts();
+    delete accounts[id];
+    await saveAccounts(accounts);
+    return { accounts: publicAccounts(accounts) };
   }
 };
 
@@ -166,6 +184,144 @@ function blobToDataUrl(blob) {
     reader.onerror = () => reject(reader.error);
     reader.readAsDataURL(blob);
   });
+}
+
+
+const ACCOUNTS_KEY = 'accountSessions';
+const SESSION_COOKIES = ['sessionid', 'sessionid_ss', 'sid_tt'];
+const AVATAR_MAX_AGE = 3 * 24 * 3600 * 1000;
+
+async function loadAccounts() {
+  const result = await chrome.storage.local.get(ACCOUNTS_KEY);
+  return result[ACCOUNTS_KEY] || {};
+}
+
+async function saveAccounts(accounts) {
+  await chrome.storage.local.set({ [ACCOUNTS_KEY]: accounts });
+}
+
+function publicAccounts(accounts) {
+  return Object.values(accounts)
+    .map(({ cookies, ...account }) => account)
+    .sort((a, b) => (b.usedAt || 0) - (a.usedAt || 0));
+}
+
+async function storeOf(tab) {
+  if (!tab?.id) return undefined;
+  const stores = await chrome.cookies.getAllCookieStores();
+  return stores.find(store => store.tabIds.includes(tab.id))?.id;
+}
+
+const cookieUrl = (cookie) => `https://${cookie.domain.replace(/^\./, '')}${cookie.path}`;
+
+async function readSession(storeId) {
+  const cookies = await chrome.cookies.getAll({ domain: 'tiktok.com', storeId });
+  return cookies.some(c => SESSION_COOKIES.includes(c.name) && c.value) ? cookies : null;
+}
+
+async function clearSession(storeId) {
+  const cookies = await chrome.cookies.getAll({ domain: 'tiktok.com', storeId });
+  await Promise.all(cookies.map(c => chrome.cookies.remove({
+    url: cookieUrl(c),
+    name: c.name,
+    storeId,
+    ...(c.partitionKey ? { partitionKey: c.partitionKey } : {})
+  }).catch(() => {})));
+}
+
+async function writeSession(cookies, storeId) {
+  const now = Date.now() / 1000;
+  await Promise.all(cookies.filter(c => c.session || !c.expirationDate || c.expirationDate > now).map(c => {
+    const details = { url: cookieUrl(c), name: c.name, value: c.value, path: c.path, secure: c.secure, httpOnly: c.httpOnly, storeId };
+    if (!c.hostOnly) details.domain = c.domain;
+    if (c.sameSite && c.sameSite !== 'unspecified') details.sameSite = c.sameSite;
+    if (!c.session && c.expirationDate) details.expirationDate = c.expirationDate;
+    if (c.partitionKey) details.partitionKey = c.partitionKey;
+    return chrome.cookies.set(details).catch(error => log('⚠️', `Cookie ${c.name} not restored:`, error.message));
+  }));
+}
+
+async function avatarData(url) {
+  try {
+    const { blob } = await fetchFirst([assertUrl(url)]);
+    return await blobToDataUrl(blob);
+  } catch {
+    return '';
+  }
+}
+
+async function rememberCurrent(accounts, viewer, storeId) {
+  if (!viewer?.id) return false;
+  const cookies = await readSession(storeId);
+  if (!cookies) return false;
+
+  const previous = accounts[viewer.id] || {};
+  const account = {
+    ...previous,
+    id: String(viewer.id),
+    username: viewer.username || previous.username || '',
+    nickname: viewer.nickname || previous.nickname || '',
+    avatarUrl: viewer.avatar || previous.avatarUrl || '',
+    cookies,
+    expired: false,
+    savedAt: Date.now(),
+    usedAt: Date.now()
+  };
+  if (account.avatarUrl && (!previous.avatar || previous.avatarUrl !== account.avatarUrl || Date.now() - (previous.avatarAt || 0) > AVATAR_MAX_AGE)) {
+    account.avatar = (await avatarData(account.avatarUrl)) || previous.avatar || '';
+    account.avatarAt = Date.now();
+  }
+  accounts[account.id] = account;
+  return true;
+}
+
+async function accountSeen(viewer, tab) {
+  const storeId = await storeOf(tab);
+  const accounts = await loadAccounts();
+  const { pendingAccount } = await chrome.storage.session.get('pendingAccount');
+  let expired = null;
+
+  if (pendingAccount) {
+    await chrome.storage.session.remove('pendingAccount');
+    if (viewer?.id !== pendingAccount && accounts[pendingAccount]) {
+      accounts[pendingAccount].expired = true;
+      expired = accounts[pendingAccount].username;
+    }
+  }
+
+  await rememberCurrent(accounts, viewer, storeId);
+  await saveAccounts(accounts);
+  return { expired, accounts: publicAccounts(accounts) };
+}
+
+async function accountSwitch(id, viewer, tab) {
+  const storeId = await storeOf(tab);
+  const accounts = await loadAccounts();
+  const target = accounts[id];
+  if (!target) throw new Error('not_found');
+
+  await rememberCurrent(accounts, viewer, storeId);
+  await saveAccounts(accounts);
+  await clearSession(storeId);
+
+  if (target.expired) {
+    log('🔑', `Session of @${target.username} expired, opening the login page`);
+    return { login: true };
+  }
+
+  await writeSession(target.cookies, storeId);
+  await chrome.storage.session.set({ pendingAccount: id });
+  log('🔁', `Switched to @${target.username}`);
+  return { login: false };
+}
+
+async function accountAdd(viewer, tab) {
+  const storeId = await storeOf(tab);
+  const accounts = await loadAccounts();
+  await rememberCurrent(accounts, viewer, storeId);
+  await saveAccounts(accounts);
+  await clearSession(storeId);
+  return {};
 }
 
 

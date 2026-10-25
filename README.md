@@ -41,6 +41,7 @@ A Chrome extension that adds the TikTok features I was missing: downloads withou
 - Auto sync every 12 h or 24 h, manual sync, CSV export
 
 **Extras**
+- Multiple accounts: "Switch account" button above "Log out", sessions saved automatically
 - Exact posting date, playback speed (0.5× to 2×)
 - Shortcuts: D download, A sound, X capture; Alt+Shift+T opens the panel
 - English and French

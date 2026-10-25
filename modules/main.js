@@ -14,11 +14,12 @@ import { videosFeature } from './features/videos.js';
 import { tilesFeature } from './features/tiles.js';
 import { profileFeature } from './features/profile.js';
 import { storiesFeature } from './features/stories.js';
+import { accountsFeature, reportAccount } from './features/accounts.js';
 import { initSpeed } from './features/speed.js';
 import { initShortcuts } from './features/shortcuts.js';
 
 const SCAN_THROTTLE = 250;
-const FEATURES = [videosFeature, storiesFeature, tilesFeature, profileFeature];
+const FEATURES = [videosFeature, storiesFeature, tilesFeature, profileFeature, accountsFeature];
 
 const active = new Map();
 let observer = null;
@@ -109,6 +110,7 @@ function boot() {
 
   startSyncScheduler();
   watchMarkedRenames();
+  reportAccount();
   logger.success('Extension loaded');
 }
 

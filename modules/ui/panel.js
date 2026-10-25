@@ -11,6 +11,7 @@ import { runDownload } from './actions.js';
 import { getMarks, onMarksChange, lookup, mark, unmark, refreshMarks, isMarked } from '../services/ids.js';
 import { icon } from './icons.js';
 import { openOverlay } from './overlay.js';
+import { openAccountSwitcher } from './accountSwitcher.js';
 import { toast } from './toast.js';
 import { SPEEDS, speedLabel } from '../features/speed.js';
 
@@ -48,7 +49,10 @@ export function openPanel({ tab = 'following' } = {}) {
   const sheet = h('div', { class: 'ttp-sheet ttp-glass' },
     h('div', { class: 'ttp-sheet-header' },
       h('div', { class: 'ttp-sheet-title' }, h('strong', {}, 'TikTok+'), h('span', { class: 'ttp-muted' }, `v${chrome.runtime.getManifest().version}`)),
-      h('button', { class: 'ttp-tool', type: 'button', title: t('CLOSE'), on: { click: close } }, icon('close', { size: 18 }))
+      h('div', { class: 'ttp-row' },
+        h('button', { class: 'ttp-tool', type: 'button', title: t('ACCOUNT_SWITCH'), on: { click: () => { close(); openAccountSwitcher(); } } }, icon('switchUser', { size: 18 })),
+        h('button', { class: 'ttp-tool', type: 'button', title: t('CLOSE'), on: { click: close } }, icon('close', { size: 18 }))
+      )
     ),
     h('div', { class: 'ttp-tabs' }, tabButtons),
     body
