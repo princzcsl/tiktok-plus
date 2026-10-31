@@ -15,6 +15,10 @@ A Chrome extension that adds the TikTok features I was missing: downloads withou
 | --- | --- |
 | ![Tracking panel](screenshots/tracking.png) | ![Settings](screenshots/settings.png) |
 
+| Switch account | Accounts |
+| --- | --- |
+| ![Switch account in TikTok's menu](screenshots/switch.png) | ![Account switcher](screenshots/accounts.png) |
+
 *Screenshots use made-up demo accounts and images.*
 
 ## Features
@@ -40,8 +44,13 @@ A Chrome extension that adds the TikTok features I was missing: downloads withou
 - Who doesn't follow you back, who you don't follow back
 - Auto sync every 12 h or 24 h, manual sync, CSV export
 
+**Multiple accounts**
+- "Switch account" right above "Log out" in TikTok's menu, also in the panel header
+- Jump between your accounts in one click, without typing a password again
+- Accounts are saved automatically while you're logged in; "Add account" takes you to the login page
+- Ended sessions are flagged and lead back to the login page
+
 **Extras**
-- Multiple accounts: "Switch account" button above "Log out", sessions saved automatically
 - Exact posting date, playback speed (0.5× to 2×)
 - Shortcuts: D download, A sound, X capture; Alt+Shift+T opens the panel
 - English and French
@@ -61,6 +70,7 @@ To update, replace the folder with the new one and click the reload icon on the 
 - This repository is for educational purposes and code inspection. It is not a product and may break whenever TikTok changes its site.
 - Not affiliated with, endorsed or sponsored by TikTok or ByteDance. Follow TikTok's Terms of Service and the law, respect creators, and only download what you're allowed to keep.
 - Everything runs in your browser with your own session: no server, no tracking. Data stays in Chrome's local storage.
+- The account switcher keeps each account's TikTok session cookies in that storage, unencrypted. Anyone with access to your Chrome profile could use them, so don't use it on a shared computer. Use "Switch account" rather than "Log out": logging out ends the saved session.
 
 ## License
 
