@@ -5,6 +5,7 @@
   const SOURCE = 'ttp-hook';
   const RELEVANT_URL = /\/api\//;
   const STORY_URL = /\/story\//;
+  const CSP_BLOCKED_URL = /^https:\/\/mon-[a-z0-9-]+\.capcutapi\.com\//;
   const MAX_TEXT = 12 * 1024 * 1024;
 
   const COMMON_KEYS = [
@@ -131,6 +132,7 @@
 
   const originalFetch = window.fetch;
   window.fetch = function (...args) {
+    if (CSP_BLOCKED_URL.test(String(args[0]?.url || args[0] || ''))) return Promise.resolve(new Response(null, { status: 204 }));
     const promise = originalFetch.apply(this, args);
     try {
       const url = String(args[0]?.url || args[0] || '');

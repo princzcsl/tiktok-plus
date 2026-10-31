@@ -3,6 +3,7 @@
 ## 1.5.0
 - Multiple accounts: "Switch account" above "Log out" in TikTok's menu (and in the panel header) to jump between saved accounts without typing a password again
 - Each logged-in account is saved automatically, sessions that ended are flagged and lead back to the login page
+- No more CSP errors attributed to the extension when TikTok's monitoring script tries to reach a domain its own policy blocks
 
 ## 1.4.2
 - Opened video (comments on the side): download and speed buttons sit above the sound button and slide up when the volume slider opens; the slider only shows when the mouse is on the sound icon
